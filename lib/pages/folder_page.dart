@@ -15,9 +15,7 @@ class FolderPage extends StatelessWidget {
     ];
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('文件夹'),
-      ),
+      appBar: AppBar(title: const Text('文件夹')),
       body: ListView.builder(
         itemCount: folders.length,
         itemBuilder: (context, index) {

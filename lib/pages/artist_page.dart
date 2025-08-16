@@ -18,9 +18,7 @@ class ArtistPage extends StatelessWidget {
     ];
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('歌手'),
-      ),
+      appBar: AppBar(title: const Text('歌手')),
       body: ListView.builder(
         itemCount: artists.length,
         itemBuilder: (context, index) {

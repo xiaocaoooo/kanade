@@ -16,9 +16,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('设置'),
-      ),
+      appBar: AppBar(title: const Text('设置')),
       body: ListView(
         children: [
           _buildSectionTitle('外观'),
@@ -64,12 +62,13 @@ class _SettingsPageState extends State<SettingsPage> {
             subtitle: const Text('选择应用显示语言'),
             trailing: DropdownButton<String>(
               value: _language,
-              items: ['中文', 'English', '日本語'].map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
+              items:
+                  ['中文', 'English', '日本語'].map((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
               onChanged: (String? newValue) {
                 setState(() {
                   _language = newValue!;
@@ -83,9 +82,9 @@ class _SettingsPageState extends State<SettingsPage> {
             trailing: const Icon(Icons.refresh),
             onTap: () {
               // 这里可以添加扫描音乐库的逻辑
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('正在扫描音乐库...')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('正在扫描音乐库...')));
             },
           ),
           _buildSectionTitle('关于'),

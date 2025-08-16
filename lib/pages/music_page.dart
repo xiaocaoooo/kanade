@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kanade/pages/folder_page.dart';
 import 'package:kanade/pages/artist_page.dart';
 import 'package:kanade/pages/album_page.dart';
+import 'package:kanade/pages/songs_page.dart';
 
 class MusicPage extends StatelessWidget {
   const MusicPage({super.key});
@@ -63,6 +64,21 @@ class MusicPage extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => const AlbumPage(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _buildCategoryCard(
+                    context: context,
+                    icon: Icons.list,
+                    title: '全部歌曲',
+                    subtitle: '浏览所有本地歌曲',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SongsPage(),
                         ),
                       );
                     },

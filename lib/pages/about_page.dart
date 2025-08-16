@@ -6,9 +6,7 @@ class AboutPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('关于应用'),
-      ),
+      appBar: AppBar(title: const Text('关于应用')),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -33,19 +31,13 @@ class AboutPage extends StatelessWidget {
               // 应用名称
               const Text(
                 'Kanade',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               // 版本号
               const Text(
                 '版本 1.0.0',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 32),
               // 应用描述
@@ -87,22 +79,10 @@ class AboutPage extends StatelessWidget {
                         ),
                       ),
                       SizedBox(height: 8),
-                      _InfoRow(
-                        label: '开发者',
-                        value: 'Kanade Team',
-                      ),
-                      _InfoRow(
-                        label: '邮箱',
-                        value: 'dev@kanade.app',
-                      ),
-                      _InfoRow(
-                        label: '官网',
-                        value: 'https://kanade.app',
-                      ),
-                      _InfoRow(
-                        label: 'GitHub',
-                        value: 'github.com/kanade-app',
-                      ),
+                      _InfoRow(label: '开发者', value: 'Kanade Team'),
+                      _InfoRow(label: '邮箱', value: 'dev@kanade.app'),
+                      _InfoRow(label: '官网', value: 'https://kanade.app'),
+                      _InfoRow(label: 'GitHub', value: 'github.com/kanade-app'),
                     ],
                   ),
                 ),
@@ -135,10 +115,7 @@ class AboutPage extends StatelessWidget {
               // 版权信息
               const Text(
                 '© 2024 Kanade Team. All rights reserved.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ],
           ),
@@ -152,10 +129,7 @@ class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _InfoRow({
-    required this.label,
-    required this.value,
-  });
+  const _InfoRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -174,9 +148,7 @@ class _InfoRow extends StatelessWidget {
               ),
             ),
           ),
-          Expanded(
-            child: Text(value),
-          ),
+          Expanded(child: Text(value)),
         ],
       ),
     );

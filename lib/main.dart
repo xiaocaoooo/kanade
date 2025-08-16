@@ -35,10 +35,7 @@ class KanadeApp extends StatelessWidget {
 
         return MaterialApp(
           title: 'Kanade',
-          theme: ThemeData(
-            colorScheme: lightColorScheme,
-            useMaterial3: true,
-          ),
+          theme: ThemeData(colorScheme: lightColorScheme, useMaterial3: true),
           darkTheme: ThemeData(
             colorScheme: darkColorScheme,
             useMaterial3: true,
@@ -79,22 +76,10 @@ class _MainNavigationState extends State<MainNavigation> {
           });
         },
         destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home),
-            label: '主页',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.search),
-            label: '搜索',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.music_note),
-            label: '音乐',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.more_horiz),
-            label: '更多',
-          ),
+          NavigationDestination(icon: Icon(Icons.home), label: '主页'),
+          NavigationDestination(icon: Icon(Icons.search), label: '搜索'),
+          NavigationDestination(icon: Icon(Icons.music_note), label: '音乐'),
+          NavigationDestination(icon: Icon(Icons.more_horiz), label: '更多'),
         ],
       ),
     );

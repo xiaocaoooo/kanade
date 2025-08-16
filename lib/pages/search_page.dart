@@ -17,13 +17,10 @@ class _SearchPageState extends State<SearchPage> {
 
     // 模拟搜索本地音乐数据
     setState(() {
-      searchResults = [
-        '歌曲1 - 艺术家1',
-        '歌曲2 - 艺术家2',
-        '歌曲3 - 艺术家3',
-        '专辑1 - 艺术家1',
-        '专辑2 - 艺术家2',
-      ].where((item) => item.toLowerCase().contains(query.toLowerCase())).toList();
+      searchResults =
+          ['歌曲1 - 艺术家1', '歌曲2 - 艺术家2', '歌曲3 - 艺术家3', '专辑1 - 艺术家1', '专辑2 - 艺术家2']
+              .where((item) => item.toLowerCase().contains(query.toLowerCase()))
+              .toList();
     });
   }
 
@@ -50,9 +47,7 @@ class _SearchPageState extends State<SearchPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('搜索'),
-      ),
+      appBar: AppBar(title: const Text('搜索')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -100,13 +95,9 @@ class _SearchPageState extends State<SearchPage> {
                 ),
               )
             else if (_searchController.text.isNotEmpty)
-              const Center(
-                child: Text('未找到匹配的音乐'),
-              )
+              const Center(child: Text('未找到匹配的音乐'))
             else
-              const Center(
-                child: Text('输入关键词开始搜索'),
-              ),
+              const Center(child: Text('输入关键词开始搜索')),
           ],
         ),
       ),

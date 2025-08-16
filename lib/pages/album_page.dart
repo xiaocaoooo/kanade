@@ -12,15 +12,18 @@ class AlbumPage extends StatelessWidget {
       {'title': '1989', 'artist': 'Taylor Swift', 'year': 2014, 'songs': 13},
       {'title': 'U87', 'artist': '陈奕迅', 'year': 2005, 'songs': 11},
       {'title': '摩天动物园', 'artist': '邓紫棋', 'year': 2019, 'songs': 13},
-      {'title': '÷ (Divide)', 'artist': 'Ed Sheeran', 'year': 2017, 'songs': 12},
+      {
+        'title': '÷ (Divide)',
+        'artist': 'Ed Sheeran',
+        'year': 2017,
+        'songs': 12,
+      },
       {'title': '吻别', 'artist': '张学友', 'year': 1993, 'songs': 10},
       {'title': '25', 'artist': 'Adele', 'year': 2015, 'songs': 11},
     ];
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('专辑'),
-      ),
+      appBar: AppBar(title: const Text('专辑')),
       body: GridView.builder(
         padding: const EdgeInsets.all(16),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -44,8 +47,12 @@ class AlbumPage extends StatelessWidget {
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withOpacity(0.3),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(12),
+                        ),
                       ),
                       child: Center(
                         child: Icon(

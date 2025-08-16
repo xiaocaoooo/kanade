@@ -6,34 +6,19 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kanade'),
-      ),
+      appBar: AppBar(title: const Text('Kanade')),
       body: const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.music_note,
-              size: 64,
-              color: Colors.blue,
-            ),
+            Icon(Icons.music_note, size: 64, color: Colors.blue),
             SizedBox(height: 16),
             Text(
               '欢迎使用 Kanade',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 8),
-            Text(
-              '本地音乐播放器',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
-            ),
+            Text('本地音乐播放器', style: TextStyle(fontSize: 16, color: Colors.grey)),
           ],
         ),
       ),
