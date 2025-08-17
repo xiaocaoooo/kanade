@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../models/song.dart';
 import '../services/music_service.dart';
 import '../utils/permission_helper.dart';
@@ -18,6 +19,8 @@ class _SongsPageState extends State<SongsPage> {
   List<Song> _allSongs = [];
   List<Song> _filteredSongs = [];
   bool _isSearching = false;
+  bool _isLoadingCovers = false;
+  int _loadedCoversCount = 0;
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -50,8 +53,9 @@ class _SongsPageState extends State<SongsPage> {
       }
     }
 
+    // 先加载歌曲基本信息（不包含封面）
     setState(() {
-      _songsFuture = MusicService.getAllSongs();
+      _songsFuture = MusicService.getAllSongsWithoutArt();
     });
 
     final songs = await _songsFuture ?? [];
@@ -59,6 +63,41 @@ class _SongsPageState extends State<SongsPage> {
       _allSongs = songs;
       _filteredSongs = songs;
     });
+
+    // 异步加载专辑封面
+    _loadAlbumArts();
+  }
+
+  /// 异步加载专辑封面（实时更新）
+  Future<void> _loadAlbumArts() async {
+    if (_allSongs.isEmpty) return;
+
+    setState(() {
+      _isLoadingCovers = true;
+      _loadedCoversCount = 0;
+    });
+
+    await MusicService.loadAlbumArtsWithCallback(
+      _allSongs,
+      (updatedSongs) {
+        if (mounted) {
+          setState(() {
+            _allSongs = updatedSongs;
+            _filteredSongs = MusicService.searchSongs(_allSongs, _searchController.text.trim());
+            _loadedCoversCount = updatedSongs.where((song) => song.albumArt != null).length;
+            if (_loadedCoversCount >= _allSongs.length) {
+              _isLoadingCovers = false;
+            }
+          });
+        }
+      },
+    );
+
+    if (mounted) {
+      setState(() {
+        _isLoadingCovers = false;
+      });
+    }
   }
 
   /// 处理搜索变化
@@ -98,6 +137,27 @@ class _SongsPageState extends State<SongsPage> {
                 )
                 : const Text('本地音乐'),
         actions: [
+          if (_isLoadingCovers && !_isSearching)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '$_loadedCoversCount/${_allSongs.length}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search),
             onPressed: () {

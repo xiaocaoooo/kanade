@@ -27,6 +27,9 @@ class Song {
   /// 专辑封面缩略图
   final Uint8List? albumArt;
 
+  /// 专辑ID（用于获取封面）
+  final String? albumId;
+
   /// 创建时间
   final DateTime dateAdded;
 
@@ -42,6 +45,7 @@ class Song {
     required this.path,
     required this.size,
     this.albumArt,
+    this.albumId,
     required this.dateAdded,
     required this.dateModified,
   });
@@ -73,6 +77,7 @@ class Song {
       path: map['path'] ?? '',
       size: (map['size'] as num?)?.toInt() ?? 0,
       albumArt: albumArt,
+      albumId: map['albumId']?.toString(),
       dateAdded: DateTime.fromMillisecondsSinceEpoch(map['dateAdded'] ?? 0),
       dateModified: DateTime.fromMillisecondsSinceEpoch(
         map['dateModified'] ?? 0,
