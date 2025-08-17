@@ -22,6 +22,7 @@ enum PlayMode {
 
 /// 音频播放服务类
 /// 提供完整的音频播放功能，包括播放控制、进度管理、音量控制等
+/// 这是一个全局单例服务，确保音频播放在应用生命周期内保持连续性
 class AudioPlayerService extends ChangeNotifier {
   late AudioPlayer _audioPlayer;
   

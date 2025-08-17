@@ -36,14 +36,17 @@ class KanadeApp extends StatelessWidget {
           );
         }
 
-        return MaterialApp(
-          title: 'Kanade',
-          theme: ThemeData(colorScheme: lightColorScheme, useMaterial3: true),
-          darkTheme: ThemeData(
-            colorScheme: darkColorScheme,
-            useMaterial3: true,
+        return ChangeNotifierProvider(
+          create: (context) => AudioPlayerService(),
+          child: MaterialApp(
+            title: 'Kanade',
+            theme: ThemeData(colorScheme: lightColorScheme, useMaterial3: true),
+            darkTheme: ThemeData(
+              colorScheme: darkColorScheme,
+              useMaterial3: true,
+            ),
+            home: const MainNavigation(),
           ),
-          home: const MainNavigation(),
         );
       },
     );
@@ -69,30 +72,27 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => AudioPlayerService(),
-      child: Scaffold(
-        body: _pages[_currentIndex],
-        bottomNavigationBar: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const MiniPlayer(),
-            NavigationBar(
-              selectedIndex: _currentIndex,
-              onDestinationSelected: (index) {
-                setState(() {
-                  _currentIndex = index;
-                });
-              },
-              destinations: const [
-                NavigationDestination(icon: Icon(Icons.home), label: '主页'),
-                NavigationDestination(icon: Icon(Icons.search), label: '搜索'),
-                NavigationDestination(icon: Icon(Icons.music_note), label: '音乐'),
-                NavigationDestination(icon: Icon(Icons.more_horiz), label: '更多'),
-              ],
-            ),
-          ],
-        ),
+    return Scaffold(
+      body: _pages[_currentIndex],
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const MiniPlayer(),
+          NavigationBar(
+            selectedIndex: _currentIndex,
+            onDestinationSelected: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            destinations: const [
+              NavigationDestination(icon: Icon(Icons.home), label: '主页'),
+              NavigationDestination(icon: Icon(Icons.search), label: '搜索'),
+              NavigationDestination(icon: Icon(Icons.music_note), label: '音乐'),
+              NavigationDestination(icon: Icon(Icons.more_horiz), label: '更多'),
+            ],
+          ),
+        ],
       ),
     );
   }

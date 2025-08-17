@@ -28,8 +28,10 @@ class _PlayerPageState extends State<PlayerPage> {
   @override
   void initState() {
     super.initState();
-    _playerService = AudioPlayerService();
     _notificationService = MediaNotificationService();
+    
+    // 使用Provider提供的全局音频服务
+    _playerService = Provider.of<AudioPlayerService>(context, listen: false);
     
     _initializePlayer();
   }
@@ -56,7 +58,7 @@ class _PlayerPageState extends State<PlayerPage> {
 
   @override
   void dispose() {
-    _playerService.dispose();
+    // 只释放通知服务，不释放音频服务
     _notificationService.dispose();
     super.dispose();
   }
