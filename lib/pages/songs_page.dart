@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/song.dart';
 import '../services/music_service.dart';
 import '../utils/permission_helper.dart';
+import 'player_page.dart';
 
 /// 歌曲列表页面
 /// 展示设备中所有本地歌曲的完整信息
@@ -66,6 +67,19 @@ class _SongsPageState extends State<SongsPage> {
     setState(() {
       _filteredSongs = MusicService.searchSongs(_allSongs, query);
     });
+  }
+
+  /// 播放歌曲
+  void _playSong(Song song) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PlayerPage(
+          initialSong: song,
+          playlist: _allSongs,
+        ),
+      ),
+    );
   }
 
   @override
@@ -229,10 +243,7 @@ class _SongsPageState extends State<SongsPage> {
         ],
       ),
       onTap: () {
-        // TODO: 实现播放功能
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('播放: ${song.title}')));
+        _playSong(song);
       },
     );
   }

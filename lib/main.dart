@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
+import 'package:provider/provider.dart';
 import 'package:kanade/pages/home_page.dart';
 import 'package:kanade/pages/search_page.dart';
 import 'package:kanade/pages/music_page.dart';
 import 'package:kanade/pages/more_page.dart';
+import 'package:kanade/services/audio_player_service.dart';
+import 'package:kanade/widgets/mini_player.dart';
 
 void main() {
   runApp(const KanadeApp());
@@ -66,21 +69,30 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _pages[_currentIndex],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home), label: '主页'),
-          NavigationDestination(icon: Icon(Icons.search), label: '搜索'),
-          NavigationDestination(icon: Icon(Icons.music_note), label: '音乐'),
-          NavigationDestination(icon: Icon(Icons.more_horiz), label: '更多'),
-        ],
+    return ChangeNotifierProvider(
+      create: (context) => AudioPlayerService(),
+      child: Scaffold(
+        body: _pages[_currentIndex],
+        bottomNavigationBar: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const MiniPlayer(),
+            NavigationBar(
+              selectedIndex: _currentIndex,
+              onDestinationSelected: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+              destinations: const [
+                NavigationDestination(icon: Icon(Icons.home), label: '主页'),
+                NavigationDestination(icon: Icon(Icons.search), label: '搜索'),
+                NavigationDestination(icon: Icon(Icons.music_note), label: '音乐'),
+                NavigationDestination(icon: Icon(Icons.more_horiz), label: '更多'),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

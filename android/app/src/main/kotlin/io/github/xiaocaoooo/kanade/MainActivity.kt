@@ -8,5 +8,6 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         flutterEngine.plugins.add(MediaServicePlugin())
+        flutterEngine.plugins.add(MediaNotificationService())
     }
 }
