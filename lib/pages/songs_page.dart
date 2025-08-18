@@ -19,9 +19,10 @@ class _SongsPageState extends State<SongsPage> {
   List<Song> _allSongs = [];
   List<Song> _filteredSongs = [];
   bool _isSearching = false;
-  bool _isLoadingCovers = false;
-  int _loadedCoversCount = 0;
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final Map<String, Uint8List?> _coverCache = {};
+  final Set<String> _loadingCovers = {};
 
   @override
   void initState() {
@@ -33,6 +34,7 @@ class _SongsPageState extends State<SongsPage> {
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -64,39 +66,38 @@ class _SongsPageState extends State<SongsPage> {
       _filteredSongs = songs;
     });
 
-    // 异步加载专辑封面
-    _loadAlbumArts();
+    // 不再批量加载封面，改为按需加载
+    // _loadAlbumArts();
   }
 
-  /// 异步加载专辑封面（实时更新）
-  Future<void> _loadAlbumArts() async {
-    if (_allSongs.isEmpty) return;
+  /// 按需加载指定歌曲的封面
+  Future<void> _loadCoverForSong(Song song) async {
+    if (song.albumId == null || _coverCache.containsKey(song.albumId)) {
+      return;
+    }
 
-    setState(() {
-      _isLoadingCovers = true;
-      _loadedCoversCount = 0;
-    });
+    if (_loadingCovers.contains(song.albumId)) {
+      return; // 避免重复加载
+    }
 
-    await MusicService.loadAlbumArtsWithCallback(
-      _allSongs,
-      (updatedSongs) {
-        if (mounted) {
-          setState(() {
-            _allSongs = updatedSongs;
-            _filteredSongs = MusicService.searchSongs(_allSongs, _searchController.text.trim());
-            _loadedCoversCount = updatedSongs.where((song) => song.albumArt != null).length;
-            if (_loadedCoversCount >= _allSongs.length) {
-              _isLoadingCovers = false;
-            }
-          });
-        }
-      },
-    );
+    _loadingCovers.add(song.albumId!);
 
-    if (mounted) {
-      setState(() {
-        _isLoadingCovers = false;
-      });
+    try {
+      final cover = await MusicService.loadAlbumArtForSong(song);
+      if (mounted) {
+        setState(() {
+          _coverCache[song.albumId!] = cover;
+        });
+      }
+    } catch (e) {
+      // 加载失败，缓存空值避免重复尝试
+      if (mounted) {
+        setState(() {
+          _coverCache[song.albumId!] = null;
+        });
+      }
+    } finally {
+      _loadingCovers.remove(song.albumId!);
     }
   }
 
@@ -137,27 +138,7 @@ class _SongsPageState extends State<SongsPage> {
                 )
                 : const Text('本地音乐'),
         actions: [
-          if (_isLoadingCovers && !_isSearching)
-            Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '$_loadedCoversCount/${_allSongs.length}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+
           IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search),
             onPressed: () {
@@ -233,9 +214,20 @@ class _SongsPageState extends State<SongsPage> {
             }
 
             return ListView.builder(
+              controller: _scrollController,
               itemCount: songs.length,
               itemBuilder: (context, index) {
                 final song = songs[index];
+                
+                // 按需加载可见项的封面
+                if (song.albumId != null && 
+                    !_coverCache.containsKey(song.albumId) && 
+                    !_loadingCovers.contains(song.albumId)) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _loadCoverForSong(song);
+                  });
+                }
+                
                 return _buildSongItem(song);
               },
             );
@@ -247,6 +239,8 @@ class _SongsPageState extends State<SongsPage> {
 
   /// 构建歌曲列表项
   Widget _buildSongItem(Song song) {
+    final cover = song.albumId != null ? _coverCache[song.albumId] : null;
+    
     return ListTile(
       leading: Container(
         width: 48,
@@ -255,11 +249,11 @@ class _SongsPageState extends State<SongsPage> {
           color: Theme.of(context).colorScheme.surfaceVariant,
           borderRadius: BorderRadius.circular(4),
         ),
-        child: song.albumArt != null
+        child: cover != null
             ? ClipRRect(
                 borderRadius: BorderRadius.circular(4),
                 child: Image.memory(
-                  song.albumArt!,
+                  cover,
                   width: 48,
                   height: 48,
                   fit: BoxFit.cover,

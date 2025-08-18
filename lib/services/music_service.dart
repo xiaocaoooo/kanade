@@ -162,6 +162,15 @@ class MusicService {
     }
   }
 
+  /// 为单个歌曲加载专辑封面
+  static Future<Uint8List?> loadAlbumArtForSong(Song song) async {
+    if (song.albumId == null || song.albumId!.isEmpty) {
+      return null;
+    }
+    
+    return await getAlbumArt(song.albumId!);
+  }
+
   /// 按艺术家分组歌曲
   /// 返回Map，key为艺术家名称，value为该艺术家的歌曲列表
   static Map<String, List<Song>> groupSongsByArtist(List<Song> songs) {

@@ -115,44 +115,57 @@ class _PlayerPageState extends State<PlayerPage> {
 
   /// 构建专辑封面
   Widget _buildAlbumCover(Song song) {
-    return Expanded(
-      flex: 3,
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Hero(
-          tag: 'album-${song.id}',
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: song.albumArt != null
-                  ? Image.memory(
-                      song.albumArt!,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                    )
-                  : Container(
-                      color: Colors.grey[300],
-                      child: const Icon(
-                        Icons.music_note,
-                        size: 100,
-                        color: Colors.grey,
-                      ),
+    return Consumer<AudioPlayerService>(
+      builder: (context, player, child) {
+        final albumArt = player.getAlbumArtForSong(song);
+        
+        // 异步加载封面
+        if (albumArt == null && song.albumId != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            player.loadAlbumArtForSong(song);
+          });
+        }
+        
+        return Expanded(
+          flex: 3,
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Hero(
+              tag: 'album-${song.id}',
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
                     ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: albumArt != null
+                      ? Image.memory(
+                          albumArt,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                        )
+                      : Container(
+                          color: Colors.grey[300],
+                          child: const Icon(
+                            Icons.music_note,
+                            size: 100,
+                            color: Colors.grey,
+                          ),
+                        ),
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -343,9 +356,18 @@ class _PlayerPageState extends State<PlayerPage> {
               itemCount: _playerService.playlist.length,
               itemBuilder: (context, index) {
                 final song = _playerService.playlist[index];
+                final albumArt = _playerService.getAlbumArtForSong(song);
+                
+                // 异步加载封面
+                if (albumArt == null && song.albumId != null) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _playerService.loadAlbumArtForSong(song);
+                  });
+                }
+                
                 return ListTile(
-                  leading: song.albumArt != null
-                      ? Image.memory(song.albumArt!, width: 40, height: 40)
+                  leading: albumArt != null
+                      ? Image.memory(albumArt, width: 40, height: 40)
                       : const Icon(Icons.music_note),
                   title: Text(song.title),
                   subtitle: Text(song.artist),

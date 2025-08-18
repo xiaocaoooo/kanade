@@ -49,15 +49,24 @@ class MiniPlayer extends StatelessWidget {
                       color: Theme.of(context).colorScheme.surfaceVariant,
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: player.currentSong?.albumArt != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: Image.memory(
-                              player.currentSong!.albumArt!,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        : const Icon(Icons.music_note, size: 24),
+                    child: () {
+                      final albumArt = player.getAlbumArtForSong(player.currentSong!);
+                      if (albumArt != null) {
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: Image.memory(
+                            albumArt,
+                            fit: BoxFit.cover,
+                          ),
+                        );
+                      } else {
+                        // 异步加载封面
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          player.loadAlbumArtForSong(player.currentSong!);
+                        });
+                        return const Icon(Icons.music_note, size: 24);
+                      }
+                    }(),
                   ),
                 ),
                 

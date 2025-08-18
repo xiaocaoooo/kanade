@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../models/song.dart';
+import 'music_service.dart';
 
 /// 音频播放状态枚举
 enum PlayerState {
@@ -61,6 +63,9 @@ class AudioPlayerService extends ChangeNotifier {
   StreamSubscription? _positionSubscription;
   StreamSubscription? _durationSubscription;
   StreamSubscription? _completionSubscription;
+  
+  // 专辑封面缓存
+  final Map<String, Uint8List?> _albumArtCache = {};
   
   AudioPlayerService() {
     _init();
@@ -324,5 +329,52 @@ class AudioPlayerService extends ChangeNotifier {
     _durationSubscription?.cancel();
     _completionSubscription?.cancel();
     _audioPlayer.dispose();
+  }
+
+  /// 获取歌曲的专辑封面
+  Uint8List? getAlbumArtForSong(Song song) {
+    if (song.albumId == null) return song.albumArt;
+    return _albumArtCache[song.albumId];
+  }
+
+  /// 异步加载歌曲的专辑封面
+  Future<void> loadAlbumArtForSong(Song song) async {
+    if (song.albumId == null || _albumArtCache.containsKey(song.albumId)) {
+      return;
+    }
+
+    try {
+      final albumArt = await MusicService.loadAlbumArtForSong(song);
+      _albumArtCache[song.albumId!] = albumArt;
+      
+      // 如果这是当前播放的歌曲，更新封面
+      if (_currentSong?.id == song.id) {
+        // 创建一个新的Song对象，包含加载的封面
+        _currentSong = Song(
+          id: song.id,
+          title: song.title,
+          artist: song.artist,
+          album: song.album,
+          duration: song.duration,
+          path: song.path,
+          size: song.size,
+          albumArt: albumArt ?? song.albumArt,
+          albumId: song.albumId,
+          dateAdded: song.dateAdded,
+          dateModified: song.dateModified,
+        );
+        
+        // 更新播放列表中的对应歌曲
+        final index = _playlist.indexWhere((s) => s.id == song.id);
+        if (index != -1) {
+          _playlist[index] = _currentSong!;
+        }
+        
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('加载专辑封面失败: $e');
+      _albumArtCache[song.albumId!] = null;
+    }
   }
 }
