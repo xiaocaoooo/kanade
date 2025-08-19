@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:just_audio/just_audio.dart' as just_audio;
 import '../models/song.dart';
 import 'music_service.dart';
 
@@ -26,7 +26,7 @@ enum PlayMode {
 /// 提供完整的音频播放功能，包括播放控制、进度管理、音量控制等
 /// 这是一个全局单例服务，确保音频播放在应用生命周期内保持连续性
 class AudioPlayerService extends ChangeNotifier {
-  late AudioPlayer _audioPlayer;
+  late just_audio.AudioPlayer _audioPlayer;
   
   // 当前播放状态
   PlayerState _playerState = PlayerState.stopped;
@@ -62,7 +62,8 @@ class AudioPlayerService extends ChangeNotifier {
   // 播放进度监听
   StreamSubscription? _positionSubscription;
   StreamSubscription? _durationSubscription;
-  StreamSubscription? _completionSubscription;
+  StreamSubscription? _playerStateSubscription;
+  StreamSubscription? _playingSubscription;
   
   // 专辑封面缓存
   final Map<String, Uint8List?> _albumArtCache = {};
@@ -73,23 +74,55 @@ class AudioPlayerService extends ChangeNotifier {
   
   /// 初始化音频播放器
   void _init() {
-    _audioPlayer = AudioPlayer();
+    _audioPlayer = just_audio.AudioPlayer();
     
     // 监听播放进度
-    _positionSubscription = _audioPlayer.onPositionChanged.listen((position) {
-      _position = position;
+    _positionSubscription = _audioPlayer.positionStream.listen((position) {
+      _position = position ?? Duration.zero;
       notifyListeners();
     });
     
     // 监听音频时长
-    _durationSubscription = _audioPlayer.onDurationChanged.listen((duration) {
-      _duration = duration;
+    _durationSubscription = _audioPlayer.durationStream.listen((duration) {
+      _duration = duration ?? Duration.zero;
       notifyListeners();
     });
     
-    // 监听播放完成
-    _completionSubscription = _audioPlayer.onPlayerComplete.listen((_) {
-      _onPlayComplete();
+    // 监听播放状态变化
+    _playerStateSubscription = _audioPlayer.playerStateStream.listen((state) {
+      if (state.processingState == just_audio.ProcessingState.completed) {
+        _onPlayComplete();
+      }
+      
+      // 更新播放状态
+      if (state.playing) {
+        _playerState = PlayerState.playing;
+      } else if (state.processingState == just_audio.ProcessingState.loading) {
+        _playerState = PlayerState.loading;
+      } else if (state.processingState == just_audio.ProcessingState.ready) {
+        if (_playerState != PlayerState.playing) {
+          _playerState = PlayerState.paused;
+        }
+      } else {
+        // 处理错误状态和其他状态
+        if (state.processingState == just_audio.ProcessingState.idle ||
+            state.processingState == just_audio.ProcessingState.completed) {
+          // 正常状态，不做处理
+        } else {
+          _playerState = PlayerState.error;
+        }
+      }
+      notifyListeners();
+    });
+    
+    // 监听播放/暂停状态
+    _playingSubscription = _audioPlayer.playingStream.listen((playing) {
+      if (playing) {
+        _playerState = PlayerState.playing;
+      } else {
+        _playerState = PlayerState.paused;
+      }
+      notifyListeners();
     });
   }
   
@@ -115,8 +148,10 @@ class AudioPlayerService extends ChangeNotifier {
       _playerState = PlayerState.loading;
       notifyListeners();
       
-      await _audioPlayer.stop();
-      await _audioPlayer.play(DeviceFileSource(song.path));
+      // 使用just_audio的AudioSource
+      final audioSource = just_audio.AudioSource.uri(Uri.file(song.path));
+      await _audioPlayer.setAudioSource(audioSource);
+      await _audioPlayer.play();
       
       _currentSong = song;
       _playerState = PlayerState.playing;
@@ -138,7 +173,7 @@ class AudioPlayerService extends ChangeNotifier {
     
     try {
       if (_playerState == PlayerState.paused) {
-        await _audioPlayer.resume();
+        await _audioPlayer.play();
         _playerState = PlayerState.playing;
       } else {
         await playSong(_currentSong!);
@@ -324,11 +359,14 @@ class AudioPlayerService extends ChangeNotifier {
   }
   
   /// 释放资源
+  @override
   void dispose() {
     _positionSubscription?.cancel();
     _durationSubscription?.cancel();
-    _completionSubscription?.cancel();
+    _playerStateSubscription?.cancel();
+    _playingSubscription?.cancel();
     _audioPlayer.dispose();
+    super.dispose();
   }
 
   /// 获取歌曲的专辑封面
