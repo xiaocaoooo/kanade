@@ -215,9 +215,36 @@ class KanadeAudioPlayer(private val context: Context) {
         return try {
             val retriever = MediaMetadataRetriever()
             retriever.setDataSource(filePath)
-            val art = retriever.embeddedPicture
+            
+            // 尝试获取嵌入的专辑封面
+            val embeddedArt = retriever.embeddedPicture
+            if (embeddedArt != null) {
+                retriever.release()
+                return embeddedArt
+            }
+            
+            // 如果没有嵌入封面，尝试获取外部专辑封面
+            val album = song["album"] as? String
+            val artist = song["artist"] as? String
+            
+            // 尝试从文件目录中查找专辑封面
+            val file = File(filePath)
+            val parentDir = file.parentFile
+            if (parentDir != null) {
+                val coverFiles = arrayOf("cover.jpg", "cover.png", "folder.jpg", "folder.png", "album.jpg", "album.png")
+                for (coverFile in coverFiles) {
+                    val cover = File(parentDir, coverFile)
+                    if (cover.exists()) {
+                        cover.inputStream().use { inputStream ->
+                            retriever.release()
+                            return inputStream.readBytes()
+                        }
+                    }
+                }
+            }
+            
             retriever.release()
-            art
+            null
         } catch (e: Exception) {
             Log.e("KanadeAudioPlayer", "Error getting album art", e)
             null

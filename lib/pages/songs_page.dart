@@ -90,6 +90,7 @@ class _SongsPageState extends State<SongsPage> {
         });
       }
     } catch (e) {
+      debugPrint('加载歌曲封面失败: ${song.title} - $e');
       // 加载失败，缓存空值避免重复尝试
       if (mounted) {
         setState(() {
@@ -224,6 +225,7 @@ class _SongsPageState extends State<SongsPage> {
                     !_coverCache.containsKey(song.albumId) && 
                     !_loadingCovers.contains(song.albumId)) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
+                    debugPrint(song.toString());
                     _loadCoverForSong(song);
                   });
                 }

@@ -436,6 +436,8 @@ class AudioPlayerService extends ChangeNotifier {
       final albumArt = await MusicService.loadAlbumArtForSong(song);
       _albumArtCache[song.albumId!] = albumArt;
 
+      debugPrint('缓存专辑封面: ${song.albumId} (${albumArt?.length ?? 0} bytes)');
+
       // 如果这是当前播放的歌曲，更新封面
       if (_currentSong?.id == song.id) {
         // 创建一个新的Song对象，包含加载的封面
@@ -462,8 +464,8 @@ class AudioPlayerService extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('加载专辑封面失败: $e');
-      _albumArtCache[song.albumId!] = null;
+      debugPrint('加载专辑封面失败: ${song.title} - $e');
+      _albumArtCache[song.albumId!] = null; // 缓存null避免重复尝试
     }
   }
 }

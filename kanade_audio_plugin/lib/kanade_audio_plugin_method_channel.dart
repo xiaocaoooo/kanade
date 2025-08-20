@@ -139,7 +139,7 @@ class MethodChannelKanadeAudioPlugin extends KanadeAudioPluginPlatform {
 
   @override
   Future<Uint8List?> getAlbumArtByAlbumId(int albumId) async {
-    return await methodChannel.invokeMethod('getAlbumArt', {'albumId': albumId.toString()});
+    return await methodChannel.invokeMethod('getAlbumArtByAlbumId', {'albumId': albumId.toString()});
   }
 
   @override

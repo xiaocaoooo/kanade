@@ -84,57 +84,75 @@ class MusicService {
     Function(List<Song>) onSongUpdated
   ) async {
     try {
-      debugPrint('开始异步加载专辑封面...');
+      debugPrint('开始异步加载专辑封面... 共${songs.length}首歌曲');
       
       final updatedSongs = List<Song>.from(songs);
       final albumIdsToLoad = <int, int>{};
       
-      // 收集需要加载封面的歌曲索引和albumId
+      // 收集需要加载封面的歌曲索引和albumId，并去重
+      final loadedAlbumIds = <int>{}; // 避免重复加载相同的专辑
       for (int i = 0; i < updatedSongs.length; i++) {
         final albumId = updatedSongs[i].albumId;
         if (albumId != null && albumId.isNotEmpty) {
           final intAlbumId = int.tryParse(albumId);
-          if (intAlbumId != null) {
+          if (intAlbumId != null && !loadedAlbumIds.contains(intAlbumId)) {
             albumIdsToLoad[i] = intAlbumId;
+            loadedAlbumIds.add(intAlbumId);
           }
         }
       }
       
-      if (albumIdsToLoad.isEmpty) return;
-      
-      // 使用Future.wait并行加载，但限制并发数量
-      final batchSize = 3; // 每次并行加载3个封面
-      final batches = <List<MapEntry<int, int>>>[];
-      
-      // 分批处理
-      final entries = albumIdsToLoad.entries.toList();
-      for (int i = 0; i < entries.length; i += batchSize) {
-        batches.add(
-          entries.skip(i).take(batchSize).toList(),
-        );
+      if (albumIdsToLoad.isEmpty) {
+        debugPrint('没有需要加载的专辑封面');
+        return;
       }
       
-      // 逐批并行加载
-      for (final batch in batches) {
-        final futures = batch.map((entry) async {
-          final index = entry.key;
-          final albumId = entry.value;
-          
-          try {
-            final albumArt = await _audioPlugin.getAlbumArtByAlbumId(albumId);
-            if (albumArt != null && albumArt.isNotEmpty) {
-              updatedSongs[index] = updatedSongs[index].copyWith(albumArt: albumArt);
-              
-              // 每获取到一个封面就立即回调更新UI
-              onSongUpdated(List.from(updatedSongs));
-            }
-          } catch (e) {
-            debugPrint('加载单个封面失败: $e');
-            // 单个封面加载失败不影响其他封面
-          }
-        });
+      debugPrint('需要加载${albumIdsToLoad.length}个专辑封面');
+      
+      // 使用更合理的并发控制
+      final batchSize = 5; // 增加并发数量以提高速度
+      final entries = albumIdsToLoad.entries.toList();
+      
+      // 分批处理，每批最多5个
+      for (int i = 0; i < entries.length; i += batchSize) {
+        final batch = entries.skip(i).take(batchSize).toList();
         
-        await Future.wait(futures);
+        // 并行处理当前批次
+        final results = await Future.wait(
+          batch.map((entry) async {
+            final index = entry.key;
+            final albumId = entry.value;
+            
+            try {
+              final albumArt = await _audioPlugin.getAlbumArtByAlbumId(albumId);
+              return MapEntry(index, albumArt);
+            } catch (e) {
+              debugPrint('加载专辑封面失败: albumId=$albumId, error=$e');
+              return MapEntry(index, null);
+            }
+          }),
+          eagerError: false, // 即使某些失败也继续
+        );
+        
+        // 批量更新结果
+        bool hasUpdates = false;
+        for (final result in results) {
+          final index = result.key;
+          final albumArt = result.value;
+          
+          if (albumArt != null && albumArt.isNotEmpty) {
+            updatedSongs[index] = updatedSongs[index].copyWith(albumArt: albumArt);
+            hasUpdates = true;
+          }
+        }
+        
+        // 批量更新UI
+        if (hasUpdates) {
+          onSongUpdated(List.from(updatedSongs));
+        }
+        
+        // 小延迟避免系统过载
+        await Future.delayed(const Duration(milliseconds: 50));
       }
       
       debugPrint('专辑封面加载完成');
@@ -150,12 +168,23 @@ class MusicService {
       debugPrint('正在获取专辑封面: $albumId');
       
       final intId = int.tryParse(albumId);
-      if (intId == null) return null;
+      if (intId == null) {
+        debugPrint('专辑ID格式无效: $albumId');
+        return null;
+      }
       
       final Uint8List? result = await _audioPlugin.getAlbumArtByAlbumId(intId);
+      
+      // 记录结果
+      if (result != null) {
+        debugPrint('成功获取专辑封面: $albumId (${result.length} bytes)');
+      } else {
+        debugPrint('专辑封面不存在: $albumId');
+      }
+      
       return result;
     } catch (e) {
-      debugPrint('获取专辑封面时出错: $e');
+      debugPrint('获取专辑封面时出错: $albumId - $e');
       return null;
     }
   }

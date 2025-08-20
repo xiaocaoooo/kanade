@@ -113,4 +113,9 @@ class Song {
       dateModified: dateModified ?? this.dateModified,
     );
   }
+
+  @override
+  String toString() {
+    return 'Song(id: $id, title: $title, artist: $artist, album: $album, duration: $duration, path: $path, size: $size, albumArt: ${albumArt?.length}, albumId: $albumId, dateAdded: $dateAdded, dateModified: $dateModified)';
+  }
 }

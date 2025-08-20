@@ -14,6 +14,7 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.EventChannel.EventSink
 import io.flutter.plugin.common.EventChannel.StreamHandler
 import kotlinx.coroutines.*
+import android.util.Log
 
 /** KanadeAudioPlugin */
 class KanadeAudioPlugin: FlutterPlugin, MethodCallHandler, StreamHandler {
@@ -166,16 +167,20 @@ class KanadeAudioPlugin: FlutterPlugin, MethodCallHandler, StreamHandler {
                     }
                 }
                 "getAlbumArtByAlbumId" -> {
-                    val albumId = call.argument<String>("albumId")
+                    val albumId = call.argument<String>("albumId") ?: call.argument<Int>("albumId")?.toString()
                     if (albumId != null) {
                         try {
+                            Log.d("KanadeAudioPlugin", "开始获取专辑封面: albumId=$albumId")
                             val albumArt = mediaService.getAlbumArt(albumId)
+                            Log.d("KanadeAudioPlugin", "获取专辑封面结果: albumId=$albumId, 结果=${if (albumArt != null) "成功(${albumArt.size}字节)" else "失败"}")
                             result.success(albumArt)
                         } catch (e: Exception) {
-                            result.error("ALBUM_ART_ERROR", "Failed to load album art: ${e.message}", null)
+                            Log.d("KanadeAudioPlugin", "获取专辑封面失败: albumId=$albumId, error=${e.message}")
+                            result.success(null) // 返回null而不是错误，避免应用崩溃
                         }
                     } else {
-                        result.error("INVALID_ALBUM_ID", "Album ID is required", null)
+                        Log.d("KanadeAudioPlugin", "专辑ID为空")
+                        result.success(null) // 返回null而不是错误
                     }
                 }
                 else -> {
