@@ -30,7 +30,6 @@ class SongItem extends StatefulWidget {
 }
 
 class _SongItemState extends State<SongItem> {
-
   @override
   void initState() {
     super.initState();
@@ -64,7 +63,7 @@ class _SongItemState extends State<SongItem> {
 
     // 标记为加载中
     CoverCacheManager.instance.markAsLoading(albumId);
-    
+
     try {
       final coverData = await MusicService.getAlbumArt(albumId);
       if (coverData != null) {
@@ -116,9 +115,14 @@ class _SongItemState extends State<SongItem> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.play) {
         // 使用Provider获取音频服务并设置播放列表
-        final playerService = Provider.of<AudioPlayerService>(context, listen: false);
-        final songIndex = widget.playlist.indexWhere((s) => s.id == widget.song.id);
-        
+        final playerService = Provider.of<AudioPlayerService>(
+          context,
+          listen: false,
+        );
+        final songIndex = widget.playlist.indexWhere(
+          (s) => s.id == widget.song.id,
+        );
+
         if (songIndex != -1) {
           playerService.setPlaylist(widget.playlist, initialIndex: songIndex);
           playerService.play();
@@ -129,10 +133,11 @@ class _SongItemState extends State<SongItem> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => PlayerPage(
-            initialSong: widget.song,
-            playlist: widget.playlist,
-          ),
+          builder:
+              (context) => PlayerPage(
+                initialSong: widget.song,
+                playlist: widget.playlist,
+              ),
         ),
       );
     });
@@ -198,7 +203,7 @@ class _SongItemState extends State<SongItem> {
   Widget _buildSubtitle() {
     final artist = widget.song.artist;
     final album = widget.song.album;
-    
+
     if (artist.isNotEmpty && album.isNotEmpty) {
       return Text(
         '$artist · $album',
@@ -237,13 +242,10 @@ class _SongItemState extends State<SongItem> {
 
     final minutes = duration ~/ 60000;
     final seconds = (duration % 60000) ~/ 1000;
-    
+
     return Text(
       '$minutes:${seconds.toString().padLeft(2, '0')}',
-      style: const TextStyle(
-        fontSize: 12,
-        color: Colors.grey,
-      ),
+      style: const TextStyle(fontSize: 12, color: Colors.grey),
     );
   }
 }
