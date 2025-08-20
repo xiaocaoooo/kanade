@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show File;
 import 'package:flutter/services.dart';
 import '../models/song.dart';
 
@@ -52,6 +53,9 @@ class MediaNotificationService {
     required Duration duration,
   }) async {
     try {
+      final file = File.fromUri(song.albumArtUri!);
+      final albumArt = await file.readAsBytes();
+
       await _channel.invokeMethod('showNotification', {
         'title': song.title,
         'artist': song.artist,
@@ -59,7 +63,7 @@ class MediaNotificationService {
         'isPlaying': isPlaying,
         'position': position.inMilliseconds,
         'duration': duration.inMilliseconds,
-        'albumArt': song.albumArt,
+        'albumArt': albumArt,
       });
     } catch (e) {
       print('显示通知失败: $e');

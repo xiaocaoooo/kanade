@@ -114,13 +114,7 @@ class BackgroundAudioService extends ChangeNotifier {
                       album: song.album ?? 'Unknown Album',
                       title: song.title,
                       artist: song.artist ?? 'Unknown Artist',
-                      artUri:
-                          song.albumArt != null
-                              ? Uri.dataFromBytes(
-                                song.albumArt!,
-                                mimeType: 'image/jpeg',
-                              )
-                              : null,
+                      artUri: song.albumArtUri,
                     ),
                   ),
                 )

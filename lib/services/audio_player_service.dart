@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show File;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
@@ -161,13 +162,7 @@ class AudioPlayerService extends ChangeNotifier {
                       album: song.album ?? 'Unknown Album',
                       title: song.title,
                       artist: song.artist ?? 'Unknown Artist',
-                      artUri:
-                          song.albumArt != null
-                              ? Uri.dataFromBytes(
-                                song.albumArt!,
-                                mimeType: 'image/jpeg',
-                              )
-                              : null,
+                      artUri: song.albumArtUri,
                     ),
                   ),
                 )
@@ -422,7 +417,13 @@ class AudioPlayerService extends ChangeNotifier {
 
   /// 获取歌曲的专辑封面
   Uint8List? getAlbumArtForSong(Song song) {
-    if (song.albumId == null) return song.albumArt;
+    if (song.albumId == null) {
+        final albumArtUri = song.albumArtUri;
+        final file = File.fromUri(albumArtUri!);
+        if (file.existsSync()) {
+          return file.readAsBytesSync();
+        }
+    }
     return _albumArtCache[song.albumId];
   }
 
@@ -449,7 +450,7 @@ class AudioPlayerService extends ChangeNotifier {
           duration: song.duration,
           path: song.path,
           size: song.size,
-          albumArt: albumArt ?? song.albumArt,
+          // albumArt: albumArt ?? song.albumArt,
           albumId: song.albumId,
           dateAdded: song.dateAdded,
           dateModified: song.dateModified,

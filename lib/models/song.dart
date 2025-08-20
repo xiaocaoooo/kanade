@@ -25,7 +25,8 @@ class Song {
   final int size;
 
   /// 专辑封面缩略图
-  final Uint8List? albumArt;
+  // final Uint8List? albumArt;
+  Uri? get albumArtUri => albumId != null ? Uri.parse("content://media/external/audio/albumart/${albumId}") : null;
 
   /// 专辑ID（用于获取封面）
   final String? albumId;
@@ -44,7 +45,7 @@ class Song {
     required this.duration,
     required this.path,
     required this.size,
-    this.albumArt,
+    // this.albumArt,
     this.albumId,
     required this.dateAdded,
     required this.dateModified,
@@ -61,13 +62,14 @@ class Song {
   String get formattedSize {
     if (size < 1024) return '$size B';
     if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
-    if (size < 1024 * 1024 * 1024)
+    if (size < 1024 * 1024 * 1024) {
       return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
     return '${(size / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
   /// 从Map创建Song对象
-  factory Song.fromMap(Map<String, dynamic> map, {Uint8List? albumArt}) {
+  factory Song.fromMap(Map<String, dynamic> map) {
     return Song(
       id: map['id']?.toString() ?? '',
       title: map['title'] ?? '未知歌曲',
@@ -76,7 +78,7 @@ class Song {
       duration: (map['duration'] as num?)?.toInt() ?? 0,
       path: map['path'] ?? '',
       size: (map['size'] as num?)?.toInt() ?? 0,
-      albumArt: albumArt,
+      // albumArt: albumArt,
       albumId: map['albumId']?.toString(),
       dateAdded: DateTime.fromMillisecondsSinceEpoch(map['dateAdded'] ?? 0),
       dateModified: DateTime.fromMillisecondsSinceEpoch(
@@ -107,7 +109,7 @@ class Song {
       duration: duration ?? this.duration,
       path: path ?? this.path,
       size: size ?? this.size,
-      albumArt: albumArt ?? this.albumArt,
+      // albumArt: albumArt ?? this.albumArt,
       albumId: albumId ?? this.albumId,
       dateAdded: dateAdded ?? this.dateAdded,
       dateModified: dateModified ?? this.dateModified,
@@ -116,6 +118,6 @@ class Song {
 
   @override
   String toString() {
-    return 'Song(id: $id, title: $title, artist: $artist, album: $album, duration: $duration, path: $path, size: $size, albumArt: ${albumArt?.length}, albumId: $albumId, dateAdded: $dateAdded, dateModified: $dateModified)';
+    return 'Song(id: $id, title: $title, artist: $artist, album: $album, duration: $duration, path: $path, size: $size, albumArtUri: $albumArtUri, albumId: $albumId, dateAdded: $dateAdded, dateModified: $dateModified)';
   }
 }
