@@ -4,7 +4,6 @@ import '../services/music_service.dart';
 import '../models/song.dart';
 import '../services/audio_player_service.dart';
 import '../services/cover_cache_service.dart';
-import '../widgets/song_item.dart';
 
 /// 搜索页面
 /// 支持搜索歌曲、艺术家、专辑，使用分割后的艺术家数据

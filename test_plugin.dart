@@ -1,12 +1,13 @@
 import 'package:flutter/services.dart';
+import 'dart:developer' as developer;
 
 void testMediaService() async {
   const channel = MethodChannel('media_service');
   try {
     final result = await channel.invokeMethod('getAllSongs');
-    print('Success: ${result.length} songs found');
+    developer.log('Success: ${result.length} songs found');
   } catch (e) {
-    print('Error: $e');
+    developer.log('Error: $e');
   }
 }
 

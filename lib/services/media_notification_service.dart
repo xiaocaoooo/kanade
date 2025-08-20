@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:io' show File;
 import 'package:flutter/services.dart';
 import '../models/song.dart';
@@ -66,7 +67,7 @@ class MediaNotificationService {
         'albumArt': albumArt,
       });
     } catch (e) {
-      print('显示通知失败: $e');
+      developer.log('显示通知失败: $e');
     }
   }
   
@@ -83,7 +84,7 @@ class MediaNotificationService {
         'duration': duration.inMilliseconds,
       });
     } catch (e) {
-      print('更新播放状态失败: $e');
+      developer.log('更新播放状态失败: $e');
     }
   }
   
@@ -92,7 +93,7 @@ class MediaNotificationService {
     try {
       await _channel.invokeMethod('hideNotification');
     } catch (e) {
-      print('隐藏通知失败: $e');
+      developer.log('隐藏通知失败: $e');
     }
   }
   

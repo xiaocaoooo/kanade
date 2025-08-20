@@ -1,72 +1,116 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:kanade_audio_plugin/kanade_audio_plugin.dart';
+import 'package:kanade_audio_plugin/kanade_audio_plugin.dart' as plugin;
+import '../models/song.dart';
 
 class AudioPlayerService extends ChangeNotifier {
   static final AudioPlayerService _instance = AudioPlayerService._internal();
   factory AudioPlayerService() => _instance;
-  AudioPlayerService._internal();
+  AudioPlayerService._internal() {
+    _initialize();
+  }
 
-  final KanadeAudioPlugin _audioPlugin = KanadeAudioPlugin();
+  final plugin.KanadeAudioPlugin _audioPlugin = plugin.KanadeAudioPlugin();
+
+  StreamSubscription? _playerStateSubscription;
+  StreamSubscription? _positionSubscription;
+  StreamSubscription? _durationSubscription;
 
   List<Song> _playlist = [];
   Song? _currentSong;
-  PlayerState _playerState = PlayerState.stopped;
-  int _position = 0;
-  int _duration = 0;
+  plugin.PlayerState _playerState = plugin.PlayerState.stopped;
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
   double _volume = 1.0;
-  PlayMode _playMode = PlayMode.sequence;
+  plugin.PlayMode _playMode = plugin.PlayMode.sequence;
 
   List<Song> get playlist => _playlist;
   Song? get currentSong => _currentSong;
-  PlayerState get playerState => _playerState;
-  int get position => _position;
-  int get duration => _duration;
+  plugin.PlayerState get playerState => _playerState;
+  Duration get position => _position;
+  Duration get duration => _duration;
   double get volume => _volume;
-  PlayMode get playMode => _playMode;
+  plugin.PlayMode get playMode => _playMode;
 
-  bool get isPlaying => _playerState == PlayerState.playing;
-  bool get isPaused => _playerState == PlayerState.paused;
-  bool get isStopped => _playerState == PlayerState.stopped;
-
-  AudioPlayerService() {
-    _initialize();
-  }
+  bool get isPlaying => _playerState == plugin.PlayerState.playing;
+  bool get isPaused => _playerState == plugin.PlayerState.paused;
+  bool get isStopped => _playerState == plugin.PlayerState.stopped;
 
   Future<void> _initialize() async {
     await _audioPlugin.initialize();
 
     // 监听状态变化
-    _audioPlugin.onPlayerStateChanged.listen((data) {
-      _playerState = data['state'] as PlayerState;
-      _position = data['position'] as int;
-      _duration = data['duration'] as int;
+    _audioPlugin.onPlayerStateChanged.listen((state) {
+      _playerState = state;
       notifyListeners();
     });
 
-    _audioPlugin.onPositionChanged.listen((data) {
-      _position = data['position'] as int;
-      _duration = data['duration'] as int;
+    _audioPlugin.onPositionChanged.listen((position) {
+      _position = position;
       notifyListeners();
     });
+
+    // _durationSubscription = // 不需要单独的duration监听，duration会在状态变化时一起提供
 
     _audioPlugin.onCurrentSongChanged.listen((song) {
-      _currentSong = song;
+      if (song != null) {
+        _currentSong = Song(
+          id: song.id.toString(),
+          title: song.title,
+          artist: song.artist ?? '',
+          album: song.album ?? '',
+          duration: song.duration.inMilliseconds,
+          path: song.path,
+          size: song.size ?? 0,
+          albumId: song.albumId?.toString(),
+          dateAdded: DateTime.now(),
+          dateModified: DateTime.now(),
+        );
+      } else {
+        _currentSong = null;
+      }
       notifyListeners();
     });
   }
 
   Future<void> setPlaylist(List<Song> songs, {int initialIndex = 0}) async {
     _playlist = List.from(songs);
-    await _audioPlugin.setPlaylist(
-      songs.map((song) => song.toMap()).toList(),
-      initialIndex: initialIndex,
-    );
+    _currentSong = songs.isNotEmpty ? songs[initialIndex] : null;
+    
+    // 将Song列表转换为PluginSong列表
+    final pluginSongs = songs.map((song) => plugin.PluginSong(
+      id: int.tryParse(song.id) ?? 0,
+      title: song.title,
+      artist: song.artist,
+      album: song.album,
+      duration: Duration(milliseconds: song.duration),
+      path: song.path,
+      size: song.size,
+      albumArt: null,
+      albumId: song.albumId != null ? int.tryParse(song.albumId!) : null,
+    )).toList();
+    
+    await _audioPlugin.setPlaylist(pluginSongs, initialIndex: initialIndex);
     notifyListeners();
   }
 
   Future<void> playSong(Song song) async {
-    await _audioPlugin.playSong(song);
+    _currentSong = song;
+    
+    final pluginSong = plugin.PluginSong(
+      id: int.tryParse(song.id) ?? 0,
+      title: song.title,
+      artist: song.artist,
+      album: song.album,
+      duration: Duration(milliseconds: song.duration),
+      path: song.path,
+      size: song.size,
+      albumArt: null,
+      albumId: song.albumId != null ? int.tryParse(song.albumId!) : null,
+    );
+    
+    await _audioPlugin.playSong(pluginSong);
     notifyListeners();
   }
 
@@ -95,7 +139,7 @@ class AudioPlayerService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> seek(int position) async {
+  Future<void> seek(Duration position) async {
     await _audioPlugin.seek(position);
     notifyListeners();
   }
@@ -112,15 +156,19 @@ class AudioPlayerService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<Uint8List?> getAlbumArt(Song song) async {
-    return await _audioPlugin.getAlbumArt(song.id);
+  Future<Uint8List?> getAlbumArtForSong(Song song) async {
+    return await _audioPlugin.getAlbumArt(int.tryParse(song.id) ?? 0);
   }
 
-  Future<Uint8List?> loadAlbumArt(Song song) async {
-    return await _audioPlugin.loadAlbumArt(song.id);
+  Future<void> loadAlbumArtForSong(Song song) async {
+    await _audioPlugin.loadAlbumArt(int.tryParse(song.id) ?? 0);
   }
 
+  @override
   void dispose() {
-    // 插件会自动处理清理
+    _playerStateSubscription?.cancel();
+    _positionSubscription?.cancel();
+    _durationSubscription?.cancel();
+    super.dispose();
   }
 }

@@ -8,11 +8,13 @@ void main() {
 }
 
 class MediaPluginTest extends StatefulWidget {
+  const MediaPluginTest({super.key});
+  
   @override
-  _MediaPluginTestState createState() => _MediaPluginTestState();
+  State<MediaPluginTest> createState() => _MediaPluginTestState();
 }
 
-class _MediaPluginTestState extends State<MediaPluginTest> {
+class _MediaPluginTestState extends State<MediaPluginTest> with WidgetsBindingObserver {
   static const platform = MethodChannel('media_service');
   String _result = '等待测试...';
 

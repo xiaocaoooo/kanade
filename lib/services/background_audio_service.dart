@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
 import 'package:just_audio_background/just_audio_background.dart';
@@ -50,7 +49,7 @@ class BackgroundAudioService extends ChangeNotifier {
 
     // 监听播放进度
     _positionSubscription = _audioPlayer.positionStream.listen((position) {
-      _position = position ?? Duration.zero;
+      _position = position;
       notifyListeners();
     });
 
@@ -61,14 +60,14 @@ class BackgroundAudioService extends ChangeNotifier {
     });
 
     // 监听播放状态变化
-    _playerStateSubscription = _audioPlayer.playerStateStream.listen((state) {
-      if (state.processingState == just_audio.ProcessingState.completed) {
-        _onPlayComplete();
-      }
+      _playerStateSubscription = _audioPlayer.playerStateStream.listen((state) {
+        if (state.processingState == just_audio.ProcessingState.completed) {
+          _onPlayComplete();
+        }
 
-      _isPlaying = state.playing;
-      notifyListeners();
-    });
+        _isPlaying = state.playing;
+        notifyListeners();
+      });
 
     // 监听播放/暂停状态
     _playingSubscription = _audioPlayer.playingStream.listen((playing) {
@@ -103,11 +102,11 @@ class BackgroundAudioService extends ChangeNotifier {
     if (_playlist.isEmpty) return;
 
     try {
-      final playlist = ConcatenatingAudioSource(
+      final playlist = just_audio.ConcatenatingAudioSource(
         children:
             _playlist
                 .map(
-                  (song) => AudioSource.uri(
+                  (song) => just_audio.AudioSource.uri(
                     Uri.file(song.path),
                     tag: MediaItem(
                       id: song.id.toString(),

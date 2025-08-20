@@ -1,14 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import '../lib/services/settings_service.dart';
-import '../lib/models/song.dart';
+import 'package:kanade/models/song.dart';
 
 void main() {
   group('Search Integration Tests', () {
-    late SettingsService settingsService;
-
-    setUp(() {
-      settingsService = SettingsService();
-    });
+    // SettingsService settingsService; // 移除未使用的变量
 
     test('搜索功能使用分割后的艺术家数据', () {
       // 创建测试歌曲

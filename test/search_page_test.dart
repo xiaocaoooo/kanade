@@ -1,61 +1,134 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
 import 'package:provider/provider.dart';
-import '../lib/pages/search_page.dart';
-import '../lib/services/music_service.dart';
-import '../lib/services/audio_player_service.dart';
-import '../lib/models/song.dart';
+import 'package:kanade/pages/search_page.dart';
+import 'package:kanade/models/song.dart';
+import 'package:kanade/services/audio_player_service.dart';
 
-class MockMusicService extends Mock implements MusicService {}
+import 'dart:typed_data';
 
-class MockAudioPlayerService extends Mock implements AudioPlayerService {}
+class MockMusicService {
+  Future<List<Song>> getAllSongs() async {
+    return [
+      Song(
+        id: '1',
+        title: '测试歌曲1',
+        artist: '艺术家A',
+        album: '专辑1',
+        duration: 180000,
+        path: 'path1',
+        size: 1024,
+        dateAdded: DateTime.now(),
+        dateModified: DateTime.now(),
+      ),
+      Song(
+        id: '2',
+        title: '测试歌曲2',
+        artist: '艺术家A/艺术家B',
+        album: '专辑2',
+        duration: 200000,
+        path: 'path2',
+        size: 2048,
+        dateAdded: DateTime.now(),
+        dateModified: DateTime.now(),
+      ),
+      Song(
+        id: '3',
+        title: '初音未来歌曲',
+        artist: '初音未来',
+        album: 'Vocaloid专辑',
+        duration: 220000,
+        path: 'path3',
+        size: 3072,
+        dateAdded: DateTime.now(),
+        dateModified: DateTime.now(),
+      ),
+    ];
+  }
+}
+
+class MockAudioPlayerService extends AudioPlayerService {
+  @override
+  Future<void> playSong(Song song) async {}
+
+  @override
+  Future<void> pause() async {}
+
+  @override
+  Future<void> resume() async {}
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  Future<void> play() async {}
+
+  @override
+  Future<void> next() async {}
+
+  @override
+  Future<void> previous() async {}
+
+  @override
+  Future<void> seek(Duration position) async {}
+
+  @override
+  Future<void> setVolume(double volume) async {}
+
+  // togglePlayMode方法在父类中返回void，不需要override
+
+  @override
+  Future<void> setPlaylist(List<Song> songs, {int initialIndex = 0}) async {}
+
+  @override
+  Uint8List? getAlbumArtForSong(Song song) => null;
+
+  @override
+  Future<Uint8List?> loadAlbumArtForSong(Song song) async => null;
+
+  @override
+  List<Song> get playlist => [];
+
+  @override
+  Song? get currentSong => null;
+
+  @override
+  bool get isPlaying => false;
+
+  @override
+  bool get isPaused => false;
+
+  @override
+  bool get isStopped => true;
+
+  @override
+  Duration get position => Duration.zero;
+
+  @override
+  Duration get duration => Duration.zero;
+
+  @override
+  double get volume => 1.0;
+
+  @override
+  double get progress => 0.0;
+
+  @override
+  PlayerState get playerState => PlayerState.stopped;
+
+  @override
+  PlayMode get playMode => PlayMode.sequence;
+
+  @override
+  IconData get playModeIcon => Icons.repeat;
+}
 
 void main() {
   group('SearchPage Tests', () {
-    late MockMusicService mockMusicService;
     late MockAudioPlayerService mockAudioPlayerService;
-    late List<Song> mockSongs;
 
     setUp(() {
-      mockMusicService = MockMusicService();
       mockAudioPlayerService = MockAudioPlayerService();
-
-      // 创建测试数据
-      mockSongs = [
-        Song(
-          id: '1',
-          title: '测试歌曲1',
-          artist: '艺术家A',
-          album: '专辑1',
-          duration: 180000,
-          uri: 'uri1',
-          albumArtUri: null,
-        ),
-        Song(
-          id: '2',
-          title: '测试歌曲2',
-          artist: '艺术家A/艺术家B',
-          album: '专辑2',
-          duration: 200000,
-          uri: 'uri2',
-          albumArtUri: null,
-        ),
-        Song(
-          id: '3',
-          title: '初音未来歌曲',
-          artist: '初音未来',
-          album: 'Vocaloid专辑',
-          duration: 220000,
-          uri: 'uri3',
-          albumArtUri: null,
-        ),
-      ];
-
-      // 模拟MusicService.getAllSongsWithoutArt方法
-      when(
-        mockMusicService.getAllSongsWithoutArt(),
-      ).thenAnswer((_) async => mockSongs);
     });
 
     testWidgets('SearchPage 初始状态显示正确', (WidgetTester tester) async {
