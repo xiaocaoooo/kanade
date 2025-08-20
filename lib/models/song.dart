@@ -12,6 +12,7 @@ class Song {
 
   /// 艺术家名称列表
   late List<String> _artists;
+  List<String> get artists => _artists;
   String get artist => _artists.join(" / ");
 
   /// 专辑名称

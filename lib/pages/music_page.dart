@@ -87,8 +87,17 @@ class _MusicPageState extends State<MusicPage> {
   Map<String, List<Song>> _groupByArtist(List<Song> songs) {
     final groups = <String, List<Song>>{};
     for (final song in songs) {
-      final artist = song.artist.isNotEmpty ? song.artist : '未知艺术家';
-      groups.putIfAbsent(artist, () => []).add(song);
+      if (song.artists.isEmpty) {
+        // 如果艺术家列表为空，使用未知艺术家
+        final unknownArtist = '未知艺术家';
+        groups.putIfAbsent(unknownArtist, () => []).add(song);
+      } else {
+        // 使用分割后的每个艺术家作为独立的艺术家
+        for (final artist in song.artists) {
+          final artistName = artist.isNotEmpty ? artist : '未知艺术家';
+          groups.putIfAbsent(artistName, () => []).add(song);
+        }
+      }
     }
     return groups;
   }

@@ -30,19 +30,33 @@ class _ArtistPageState extends State<ArtistPage> {
       final songs = await MusicService.getAllSongsWithoutArt();
       final artistMap = <String, List<Song>>{};
 
-      // 按艺术家分组歌曲
+      // 按分割后的艺术家分组歌曲
       for (final song in songs) {
-        final artist = song.artist.isNotEmpty ? song.artist : '未知艺术家';
-        artistMap.putIfAbsent(artist, () => []).add(song);
+        if (song.artists.isEmpty) {
+          // 如果艺术家列表为空，使用未知艺术家
+          final unknownArtist = '未知艺术家';
+          artistMap.putIfAbsent(unknownArtist, () => []).add(song);
+        } else {
+          // 使用分割后的每个艺术家作为独立的艺术家
+          for (final artist in song.artists) {
+            final artistName = artist.isNotEmpty ? artist : '未知艺术家';
+            artistMap.putIfAbsent(artistName, () => []).add(song);
+          }
+        }
       }
 
       // 转换为艺术家列表
-      final artists = artistMap.entries.map((entry) => {
-        'name': entry.key,
-        'songs': entry.value,
-        'count': entry.value.length,
-        'albums': _countUniqueAlbums(entry.value),
-      }).toList();
+      final artists =
+          artistMap.entries
+              .map(
+                (entry) => {
+                  'name': entry.key,
+                  'songs': entry.value,
+                  'count': entry.value.length,
+                  'albums': _countUniqueAlbums(entry.value),
+                },
+              )
+              .toList();
 
       // 按歌曲数量排序
       artists.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
@@ -104,18 +118,17 @@ class _ArtistPageState extends State<ArtistPage> {
               artist['name'] as String,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            subtitle: Text(
-              '${artist['albums']} 张专辑 · ${artist['count']} 首歌曲',
-            ),
+            subtitle: Text('${artist['albums']} 张专辑 · ${artist['count']} 首歌曲'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => ArtistSongsPage(
-                    artistName: artist['name'] as String,
-                    songs: artist['songs'] as List<Song>,
-                  ),
+                  builder:
+                      (context) => ArtistSongsPage(
+                        artistName: artist['name'] as String,
+                        songs: artist['songs'] as List<Song>,
+                      ),
                 ),
               );
             },
@@ -162,80 +175,75 @@ class _ArtistSongsPageState extends State<ArtistSongsPage> {
       return;
     }
 
-    await MusicService.loadAlbumArtsWithCallback(
-      _songs,
-      (updatedSongs) {
-        if (mounted) {
-          setState(() {
-            _songs = updatedSongs;
-            _isLoading = false;
-          });
-        }
-      },
-    );
+    await MusicService.loadAlbumArtsWithCallback(_songs, (updatedSongs) {
+      if (mounted) {
+        setState(() {
+          _songs = updatedSongs;
+          _isLoading = false;
+        });
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.artistName),
-      ),
-      body: _isLoading && _songs.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : _songs.isEmpty
+      appBar: AppBar(title: Text(widget.artistName)),
+      body:
+          _isLoading && _songs.isEmpty
+              ? const Center(child: CircularProgressIndicator())
+              : _songs.isEmpty
               ? const Center(child: Text('该歌手暂无歌曲'))
               : ListView.builder(
-                  itemCount: _songs.length,
-                  itemBuilder: (context, index) {
-                    final song = _songs[index];
-                    return SongItem(
-                      song: song,
-                      playlist: _songs,
-                      play: true,
-                      onLongPress: () => _showSongMenu(context, song),
-                    );
-                  },
-                ),
+                itemCount: _songs.length,
+                itemBuilder: (context, index) {
+                  final song = _songs[index];
+                  return SongItem(
+                    song: song,
+                    playlist: _songs,
+                    play: true,
+                    onLongPress: () => _showSongMenu(context, song),
+                  );
+                },
+              ),
     );
   }
-
-
 
   void _showSongMenu(BuildContext context, Song song) {
     showModalBottomSheet(
       context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.play_arrow),
-              title: const Text('播放'),
-              onTap: () {
-                Navigator.pop(context);
-                // SongItem会自动处理播放和跳转
-              },
+      builder:
+          (context) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.play_arrow),
+                  title: const Text('播放'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    // SongItem会自动处理播放和跳转
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.add_to_queue),
+                  title: const Text('添加到播放队列'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    // TODO: 实现添加到队列功能
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.info),
+                  title: const Text('歌曲信息'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    // TODO: 实现查看歌曲信息
+                  },
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.add_to_queue),
-              title: const Text('添加到播放队列'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: 实现添加到队列功能
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.info),
-              title: const Text('歌曲信息'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: 实现查看歌曲信息
-              },
-            ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 }
