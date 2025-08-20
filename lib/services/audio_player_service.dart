@@ -2,24 +2,19 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
+import 'package:just_audio_background/just_audio_background.dart';
 import '../models/song.dart';
 import 'music_service.dart';
 
 /// 音频播放状态枚举
-enum PlayerState {
-  stopped,
-  playing,
-  paused,
-  loading,
-  error,
-}
+enum PlayerState { stopped, playing, paused, loading, error }
 
 /// 播放模式枚举
 enum PlayMode {
-  sequence,    // 顺序播放
-  repeatOne,   // 单曲循环
-  repeatAll,   // 列表循环
-  shuffle,     // 随机播放
+  sequence, // 顺序播放
+  repeatOne, // 单曲循环
+  repeatAll, // 列表循环
+  shuffle, // 随机播放
 }
 
 /// 音频播放服务类
@@ -27,73 +22,74 @@ enum PlayMode {
 /// 这是一个全局单例服务，确保音频播放在应用生命周期内保持连续性
 class AudioPlayerService extends ChangeNotifier {
   late just_audio.AudioPlayer _audioPlayer;
-  
+
   // 当前播放状态
   PlayerState _playerState = PlayerState.stopped;
   PlayerState get playerState => _playerState;
-  
+
   // 当前播放的歌曲
   Song? _currentSong;
   Song? get currentSong => _currentSong;
-  
+
   // 播放列表
   List<Song> _playlist = [];
   List<Song> get playlist => _playlist;
-  
+
   // 当前播放索引
   int _currentIndex = 0;
   int get currentIndex => _currentIndex;
-  
+
   // 播放进度
   Duration _position = Duration.zero;
   Duration get position => _position;
-  
+
   Duration _duration = Duration.zero;
   Duration get duration => _duration;
-  
+
   // 音量控制 (0.0 - 1.0)
   double _volume = 1.0;
   double get volume => _volume;
-  
+
   // 播放模式
   PlayMode _playMode = PlayMode.sequence;
   PlayMode get playMode => _playMode;
-  
+
   // 播放进度监听
   StreamSubscription? _positionSubscription;
   StreamSubscription? _durationSubscription;
   StreamSubscription? _playerStateSubscription;
   StreamSubscription? _playingSubscription;
-  
+  StreamSubscription? _currentIndexSubscription;
+
   // 专辑封面缓存
   final Map<String, Uint8List?> _albumArtCache = {};
-  
+
   AudioPlayerService() {
     _init();
   }
-  
+
   /// 初始化音频播放器
   void _init() {
     _audioPlayer = just_audio.AudioPlayer();
-    
+
     // 监听播放进度
     _positionSubscription = _audioPlayer.positionStream.listen((position) {
       _position = position ?? Duration.zero;
       notifyListeners();
     });
-    
+
     // 监听音频时长
     _durationSubscription = _audioPlayer.durationStream.listen((duration) {
       _duration = duration ?? Duration.zero;
       notifyListeners();
     });
-    
+
     // 监听播放状态变化
     _playerStateSubscription = _audioPlayer.playerStateStream.listen((state) {
       if (state.processingState == just_audio.ProcessingState.completed) {
         _onPlayComplete();
       }
-      
+
       // 更新播放状态
       if (state.playing) {
         _playerState = PlayerState.playing;
@@ -114,7 +110,7 @@ class AudioPlayerService extends ChangeNotifier {
       }
       notifyListeners();
     });
-    
+
     // 监听播放/暂停状态
     _playingSubscription = _audioPlayer.playingStream.listen((playing) {
       if (playing) {
@@ -124,8 +120,17 @@ class AudioPlayerService extends ChangeNotifier {
       }
       notifyListeners();
     });
+
+    // 监听当前播放索引变化
+    _currentIndexSubscription = _audioPlayer.currentIndexStream.listen((index) {
+      if (index != null && index >= 0 && index < _playlist.length) {
+        _currentIndex = index;
+        _currentSong = _playlist[index];
+        notifyListeners();
+      }
+    });
   }
-  
+
   /// 设置播放列表
   void setPlaylist(List<Song> songs, {int initialIndex = 0}) {
     _playlist = List.from(songs);
@@ -133,9 +138,48 @@ class AudioPlayerService extends ChangeNotifier {
     if (_playlist.isNotEmpty) {
       _currentSong = _playlist[_currentIndex];
     }
+
+    // 设置后台播放队列
+    _setupBackgroundPlaylist();
+
     notifyListeners();
   }
-  
+
+  /// 设置后台播放队列
+  Future<void> _setupBackgroundPlaylist() async {
+    if (_playlist.isEmpty) return;
+
+    try {
+      final playlist = just_audio.ConcatenatingAudioSource(
+        children:
+            _playlist
+                .map(
+                  (song) => just_audio.AudioSource.uri(
+                    Uri.file(song.path),
+                    tag: MediaItem(
+                      id: song.id.toString(),
+                      album: song.album ?? 'Unknown Album',
+                      title: song.title,
+                      artist: song.artist ?? 'Unknown Artist',
+                      artUri:
+                          song.albumArt != null
+                              ? Uri.dataFromBytes(
+                                song.albumArt!,
+                                mimeType: 'image/jpeg',
+                              )
+                              : null,
+                    ),
+                  ),
+                )
+                .toList(),
+      );
+
+      await _audioPlayer.setAudioSource(playlist);
+    } catch (e) {
+      debugPrint('设置后台播放队列失败: $e');
+    }
+  }
+
   /// 播放指定歌曲
   Future<void> playSong(Song song) async {
     if (song.path.isEmpty) {
@@ -143,22 +187,21 @@ class AudioPlayerService extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    
+
     try {
       _playerState = PlayerState.loading;
       notifyListeners();
-      
-      // 使用just_audio的AudioSource
-      final audioSource = just_audio.AudioSource.uri(Uri.file(song.path));
-      await _audioPlayer.setAudioSource(audioSource);
-      await _audioPlayer.play();
-      
-      _currentSong = song;
-      _playerState = PlayerState.playing;
-      
-      // 更新当前索引
-      _currentIndex = _playlist.indexWhere((s) => s.id == song.id);
-      
+
+      // 找到歌曲在播放列表中的索引
+      final songIndex = _playlist.indexWhere((s) => s.id == song.id);
+      if (songIndex != -1) {
+        _currentIndex = songIndex;
+        _currentSong = song;
+        await _audioPlayer.seek(Duration.zero, index: songIndex);
+        await _audioPlayer.play();
+        _playerState = PlayerState.playing;
+      }
+
       notifyListeners();
     } catch (e) {
       _playerState = PlayerState.error;
@@ -166,11 +209,11 @@ class AudioPlayerService extends ChangeNotifier {
       notifyListeners();
     }
   }
-  
+
   /// 播放当前歌曲
   Future<void> play() async {
     if (_currentSong == null) return;
-    
+
     try {
       if (_playerState == PlayerState.paused) {
         await _audioPlayer.play();
@@ -185,11 +228,11 @@ class AudioPlayerService extends ChangeNotifier {
       notifyListeners();
     }
   }
-  
+
   /// 暂停播放
   Future<void> pause() async {
     if (_playerState != PlayerState.playing) return;
-    
+
     try {
       await _audioPlayer.pause();
       _playerState = PlayerState.paused;
@@ -198,7 +241,7 @@ class AudioPlayerService extends ChangeNotifier {
       debugPrint('暂停失败: $e');
     }
   }
-  
+
   /// 停止播放
   Future<void> stop() async {
     try {
@@ -210,11 +253,11 @@ class AudioPlayerService extends ChangeNotifier {
       debugPrint('停止失败: $e');
     }
   }
-  
+
   /// 上一首
   Future<void> previous() async {
     if (_playlist.isEmpty) return;
-    
+
     int newIndex;
     switch (_playMode) {
       case PlayMode.shuffle:
@@ -227,16 +270,19 @@ class AudioPlayerService extends ChangeNotifier {
         }
         break;
     }
-    
+
     _currentIndex = newIndex;
     _currentSong = _playlist[_currentIndex];
-    await playSong(_currentSong!);
+    await _audioPlayer.seek(Duration.zero, index: newIndex);
+    if (!isPlaying) {
+      await _audioPlayer.play();
+    }
   }
-  
+
   /// 下一首
   Future<void> next() async {
     if (_playlist.isEmpty) return;
-    
+
     int newIndex;
     switch (_playMode) {
       case PlayMode.shuffle:
@@ -252,12 +298,15 @@ class AudioPlayerService extends ChangeNotifier {
         }
         break;
     }
-    
+
     _currentIndex = newIndex;
     _currentSong = _playlist[_currentIndex];
-    await playSong(_currentSong!);
+    await _audioPlayer.seek(Duration.zero, index: newIndex);
+    if (!isPlaying) {
+      await _audioPlayer.play();
+    }
   }
-  
+
   /// 设置播放进度
   Future<void> seek(Duration position) async {
     try {
@@ -268,7 +317,7 @@ class AudioPlayerService extends ChangeNotifier {
       debugPrint('调整进度失败: $e');
     }
   }
-  
+
   /// 设置音量
   Future<void> setVolume(double volume) async {
     volume = volume.clamp(0.0, 1.0);
@@ -280,7 +329,7 @@ class AudioPlayerService extends ChangeNotifier {
       debugPrint('设置音量失败: $e');
     }
   }
-  
+
   /// 切换播放模式
   void togglePlayMode() {
     const modes = PlayMode.values;
@@ -288,7 +337,7 @@ class AudioPlayerService extends ChangeNotifier {
     _playMode = modes[(currentIndex + 1) % modes.length];
     notifyListeners();
   }
-  
+
   /// 播放完成时的处理
   void _onPlayComplete() async {
     switch (_playMode) {
@@ -316,34 +365,35 @@ class AudioPlayerService extends ChangeNotifier {
         break;
     }
   }
-  
+
   /// 获取随机索引（用于随机播放）
   int _getRandomIndex() {
     if (_playlist.length <= 1) return 0;
-    
+
     int randomIndex;
     do {
-      randomIndex = (DateTime.now().millisecondsSinceEpoch % _playlist.length).toInt();
+      randomIndex =
+          (DateTime.now().millisecondsSinceEpoch % _playlist.length).toInt();
     } while (randomIndex == _currentIndex);
-    
+
     return randomIndex;
   }
-  
+
   /// 获取播放进度百分比
   double get progress {
     if (_duration.inMilliseconds == 0) return 0.0;
     return _position.inMilliseconds / _duration.inMilliseconds;
   }
-  
+
   /// 是否正在播放
   bool get isPlaying => _playerState == PlayerState.playing;
-  
+
   /// 是否已暂停
   bool get isPaused => _playerState == PlayerState.paused;
-  
+
   /// 是否已停止
   bool get isStopped => _playerState == PlayerState.stopped;
-  
+
   /// 获取播放模式图标
   IconData get playModeIcon {
     switch (_playMode) {
@@ -357,7 +407,7 @@ class AudioPlayerService extends ChangeNotifier {
         return Icons.shuffle;
     }
   }
-  
+
   /// 释放资源
   @override
   void dispose() {
@@ -365,6 +415,7 @@ class AudioPlayerService extends ChangeNotifier {
     _durationSubscription?.cancel();
     _playerStateSubscription?.cancel();
     _playingSubscription?.cancel();
+    _currentIndexSubscription?.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -384,7 +435,7 @@ class AudioPlayerService extends ChangeNotifier {
     try {
       final albumArt = await MusicService.loadAlbumArtForSong(song);
       _albumArtCache[song.albumId!] = albumArt;
-      
+
       // 如果这是当前播放的歌曲，更新封面
       if (_currentSong?.id == song.id) {
         // 创建一个新的Song对象，包含加载的封面
@@ -401,13 +452,13 @@ class AudioPlayerService extends ChangeNotifier {
           dateAdded: song.dateAdded,
           dateModified: song.dateModified,
         );
-        
+
         // 更新播放列表中的对应歌曲
         final index = _playlist.indexWhere((s) => s.id == song.id);
         if (index != -1) {
           _playlist[index] = _currentSong!;
         }
-        
+
         notifyListeners();
       }
     } catch (e) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:provider/provider.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 import 'package:kanade/pages/home_page.dart';
 import 'package:kanade/pages/search_page.dart';
 import 'package:kanade/pages/music_page.dart';
@@ -8,7 +9,13 @@ import 'package:kanade/pages/more_page.dart';
 import 'package:kanade/services/audio_player_service.dart';
 import 'package:kanade/widgets/mini_player.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await JustAudioBackground.init(
+    androidNotificationChannelId: 'com.ryanheise.bg_demo.channel.audio',
+    androidNotificationChannelName: 'Audio playback',
+    androidNotificationOngoing: true,
+  );
   runApp(const KanadeApp());
 }
 

@@ -84,4 +84,33 @@ class Song {
       ),
     );
   }
+
+  /// 创建歌曲的副本，并可选择性地修改某些属性
+  Song copyWith({
+    String? id,
+    String? title,
+    String? artist,
+    String? album,
+    int? duration,
+    String? path,
+    int? size,
+    Uint8List? albumArt,
+    String? albumId,
+    DateTime? dateAdded,
+    DateTime? dateModified,
+  }) {
+    return Song(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      artist: artist ?? this.artist,
+      album: album ?? this.album,
+      duration: duration ?? this.duration,
+      path: path ?? this.path,
+      size: size ?? this.size,
+      albumArt: albumArt ?? this.albumArt,
+      albumId: albumId ?? this.albumId,
+      dateAdded: dateAdded ?? this.dateAdded,
+      dateModified: dateModified ?? this.dateModified,
+    );
+  }
 }
