@@ -1,0 +1,38 @@
+name: Quick Build Debug
+
+# 触发条件：当代码推送到任意分支时
+on:
+  push:
+    branches: [ '**' ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # 检出代码
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    # 设置Flutter环境
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.27.0'
+        channel: 'stable'
+        cache: true
+        
+    # 获取Flutter依赖
+    - name: Get dependencies
+      run: flutter pub get
+      
+    # 构建Debug APK
+    - name: Build Debug APK
+      run: flutter build apk --debug
+      
+    # 上传构建产物
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: debug-apk
+        path: build/app/outputs/flutter-apk/app-debug.apk

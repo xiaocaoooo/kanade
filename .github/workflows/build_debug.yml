@@ -1,0 +1,101 @@
+name: Build Debug APK
+
+# 触发条件：当代码推送到任意分支或创建pull request时
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # 检出代码
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    # 设置Flutter环境
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.27.0'
+        channel: 'stable'
+        cache: true  # 启用缓存
+        
+    # 获取Flutter依赖
+    - name: Get dependencies
+      run: flutter pub get
+      
+    # 缓存依赖
+    - name: Cache Flutter dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.pub-cache
+          .dart_tool/
+        key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-flutter-
+          
+    # 检查Flutter环境
+    - name: Flutter doctor
+      run: flutter doctor -v
+      
+    # 检查代码格式
+    - name: Check code formatting
+      run: flutter format --set-exit-if-changed .
+      
+    # 运行静态分析
+    - name: Analyze code
+      run: flutter analyze
+      
+    # 运行测试（如果有的话）
+    - name: Run tests
+      run: flutter test
+      continue-on-error: true  # 允许测试失败，但继续构建
+      
+    # 构建Debug APK
+    - name: Build Debug APK
+      run: |
+        flutter build apk --debug --verbose
+        ls -la build/app/outputs/flutter-apk/
+      
+    # 上传构建产物
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: debug-apk-${{ github.sha }}
+        path: build/app/outputs/flutter-apk/app-debug.apk
+        retention-days: 14
+        
+    # 上传构建日志
+    - name: Upload build logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs-${{ github.sha }}
+        path: |
+          build/app/outputs/logs/
+          flutter_*.log
+        retention-days: 7
+        
+    # 显示构建结果
+    - name: Build Summary
+      run: |
+        echo "🔨 Build completed for commit: ${{ github.sha }}"
+        echo "📱 Branch: ${{ github.ref }}"
+        echo "👤 Committer: ${{ github.actor }}"
+        
+    # 如果构建成功，显示成功信息
+    - name: Build Success
+      if: success()
+      run: |
+        echo "✅ Debug APK build completed successfully!"
+        echo "📦 APK file: build/app/outputs/flutter-apk/app-debug.apk"
+        
+    # 如果构建失败，显示失败信息
+    - name: Build Failed
+      if: failure()
+      run: echo "❌ Debug APK build failed!"
