@@ -102,7 +102,7 @@ class Song {
     int? duration,
     String? path,
     int? size,
-    Uint8List? albumArt,
+    // Uint8List? albumArt,
     String? albumId,
     DateTime? dateAdded,
     DateTime? dateModified,

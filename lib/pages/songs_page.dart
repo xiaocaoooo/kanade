@@ -74,8 +74,6 @@ class _SongsPageState extends State<SongsPage> {
     });
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -171,11 +169,7 @@ class _SongsPageState extends State<SongsPage> {
               itemCount: songs.length,
               itemBuilder: (context, index) {
                 final song = songs[index];
-                return SongItem(
-                  song: song,
-                  playlist: songs,
-                  play: true,
-                );
+                return SongItem(song: song, playlist: songs, play: true);
               },
             );
           },
