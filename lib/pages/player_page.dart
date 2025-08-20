@@ -36,15 +36,28 @@ class _PlayerPageState extends State<PlayerPage> {
   }
 
   void _initializePlayer() {
-    // 设置播放列表
-    if (widget.playlist != null) {
+    // 设置播放列表并播放初始歌曲
+    if (widget.playlist != null && widget.initialSong != null) {
+      // 找到初始歌曲在播放列表中的索引
+      final initialIndex = widget.playlist!.indexWhere(
+        (song) => song.id == widget.initialSong!.id
+      );
+      
+      // 设置播放列表并指定初始索引
+      _playerService.setPlaylist(
+        widget.playlist!,
+        initialIndex: initialIndex != -1 ? initialIndex : 0
+      );
+      
+      // 播放当前歌曲
+      _playerService.play();
+    } else if (widget.playlist != null) {
+      // 只设置播放列表，不自动播放
       _playerService.setPlaylist(widget.playlist!);
-    }
-    
-    // 播放初始歌曲
-    print("===========");
-    if (widget.initialSong != null) {
-      _playerService.playSong(widget.initialSong!);
+    } else if (widget.initialSong != null) {
+      // 只有单首歌曲，创建包含该歌曲的播放列表
+      _playerService.setPlaylist([widget.initialSong!]);
+      _playerService.play();
     }
   }
 

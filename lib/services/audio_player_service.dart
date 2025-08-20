@@ -133,21 +133,31 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   /// 设置播放列表
-  void setPlaylist(List<Song> songs, {int initialIndex = 0}) {
+  Future<void> setPlaylist(List<Song> songs, {int initialIndex = 0}) async {
+    if (songs.isEmpty) return;
+
     _playlist = List.from(songs);
     _currentIndex = initialIndex.clamp(0, _playlist.length - 1);
+    if (_currentIndex >= _playlist.length) {
+      _currentIndex = 0;
+    }
+
     if (_playlist.isNotEmpty) {
       _currentSong = _playlist[_currentIndex];
     }
 
-    // 设置后台播放队列
-    _setupBackgroundPlaylist();
-
-    notifyListeners();
+    try {
+      await _setupBackgroundPlaylist(initialIndex: _currentIndex);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('设置播放列表失败: $e');
+      _playerState = PlayerState.error;
+      notifyListeners();
+    }
   }
 
   /// 设置后台播放队列
-  Future<void> _setupBackgroundPlaylist() async {
+  Future<void> _setupBackgroundPlaylist({int initialIndex = 0}) async {
     if (_playlist.isEmpty) return;
 
     try {
@@ -169,7 +179,7 @@ class AudioPlayerService extends ChangeNotifier {
                 .toList(),
       );
 
-      await _audioPlayer.setAudioSource(playlist);
+      await _audioPlayer.setAudioSource(playlist, initialIndex: initialIndex);
     } catch (e) {
       debugPrint('设置后台播放队列失败: $e');
     }
@@ -192,7 +202,13 @@ class AudioPlayerService extends ChangeNotifier {
       if (songIndex != -1) {
         _currentIndex = songIndex;
         _currentSong = song;
-        await _audioPlayer.seek(Duration.zero, index: songIndex);
+        
+        // 确保音频播放器处于正确的索引位置
+        if (_audioPlayer.currentIndex != songIndex) {
+          await _audioPlayer.seek(Duration.zero, index: songIndex);
+        } else {
+          await _audioPlayer.seek(Duration.zero);
+        }
         await _audioPlayer.play();
         _playerState = PlayerState.playing;
       }
@@ -418,11 +434,11 @@ class AudioPlayerService extends ChangeNotifier {
   /// 获取歌曲的专辑封面
   Uint8List? getAlbumArtForSong(Song song) {
     if (song.albumId == null) {
-        final albumArtUri = song.albumArtUri;
-        final file = File.fromUri(albumArtUri!);
-        if (file.existsSync()) {
-          return file.readAsBytesSync();
-        }
+      final albumArtUri = song.albumArtUri;
+      final file = File.fromUri(albumArtUri!);
+      if (file.existsSync()) {
+        return file.readAsBytesSync();
+      }
     }
     return _albumArtCache[song.albumId];
   }
