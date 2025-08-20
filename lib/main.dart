@@ -7,6 +7,7 @@ import 'package:kanade/pages/search_page.dart';
 import 'package:kanade/pages/music_page.dart';
 import 'package:kanade/pages/more_page.dart';
 import 'package:kanade/services/audio_player_service.dart';
+import 'package:kanade/services/settings_service.dart';
 import 'package:kanade/widgets/mini_player.dart';
 
 void main() async {
@@ -16,6 +17,7 @@ void main() async {
     androidNotificationChannelName: 'Audio playback',
     androidNotificationOngoing: true,
   );
+  await SettingsService.init();
   runApp(const KanadeApp());
 }
 

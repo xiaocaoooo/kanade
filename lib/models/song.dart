@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import '../services/settings_service.dart';
 
 /// 歌曲数据模型类
 /// 包含歌曲的完整信息，用于展示和播放
@@ -9,8 +10,9 @@ class Song {
   /// 歌曲标题
   final String title;
 
-  /// 艺术家名称
-  final String artist;
+  /// 艺术家名称列表
+  late List<String> _artists;
+  String get artist => _artists.join(" / ");
 
   /// 专辑名称
   final String album;
@@ -26,7 +28,10 @@ class Song {
 
   /// 专辑封面缩略图
   // final Uint8List? albumArt;
-  Uri? get albumArtUri => albumId != null ? Uri.parse("content://media/external/audio/albumart/${albumId}") : null;
+  Uri? get albumArtUri =>
+      albumId != null
+          ? Uri.parse("content://media/external/audio/albumart/$albumId")
+          : null;
 
   /// 专辑ID（用于获取封面）
   final String? albumId;
@@ -37,10 +42,10 @@ class Song {
   /// 最后修改时间
   final DateTime dateModified;
 
-  const Song({
+  Song({
     required this.id,
     required this.title,
-    required this.artist,
+    required String artist,
     required this.album,
     required this.duration,
     required this.path,
@@ -49,7 +54,7 @@ class Song {
     this.albumId,
     required this.dateAdded,
     required this.dateModified,
-  });
+  }) : _artists = SettingsService.splitArtists(artist);
 
   /// 获取格式化的时长字符串
   String get formattedDuration {

@@ -42,6 +42,7 @@ dependencies:
   just_audio_background:
     path: ./just_audio_background
   provider: ^6.1.2
+  shared_preferences: ^2.3.5
   kanade_audio_plugin:
     path: ./kanade_audio_plugin
 
