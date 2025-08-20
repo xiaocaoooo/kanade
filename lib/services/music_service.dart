@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:kanade/services/cover_cache_service.dart';
+import 'package:kanade/services/settings_service.dart';
 import 'package:kanade_audio_plugin/kanade_audio_plugin.dart' as plugin;
 import '../models/song.dart';
 
@@ -23,9 +24,13 @@ class MusicService {
       final pluginSongs = await _audioPlugin.getAllSongs();
       debugPrint('成功获取歌曲数据，数量: ${pluginSongs.length}');
 
-      // 将 plugin.PluginSong 转换为 Song
+      // 将 plugin.PluginSong 转换为 Song，并根据文件夹白名单过滤
       final songs =
           pluginSongs
+              .where((pluginSong) {
+                final folderPath = getFolderPath(pluginSong.path);
+                return SettingsService.isFolderWhitelisted(folderPath);
+              })
               .map(
                 (pluginSong) => Song(
                   id: pluginSong.id.toString(),
@@ -43,20 +48,7 @@ class MusicService {
               )
               .toList();
 
-      // 并行获取所有专辑封面
-      // final songsWithArt = await Future.wait(
-      //   songs.map((song) async {
-      //     if (song.albumId?.isNotEmpty == true) {
-      //       final albumId = int.tryParse(song.albumId!);
-      //       if (albumId != null) {
-      //         final albumArt = await _audioPlugin.getAlbumArtByAlbumId(albumId);
-      //         // return song.copyWith(albumArt: albumArt);
-      //       }
-      //     }
-      //     return song;
-      //   }),
-      // );
-
+      debugPrint('过滤后歌曲数量: ${songs.length}');
       return songs;
     } catch (e) {
       debugPrint('获取歌曲列表时出错: $e');
@@ -70,7 +62,11 @@ class MusicService {
     debugPrint('正在获取本地歌曲基本信息...');
 
     final pluginSongs = await _audioPlugin.getAllSongs();
-    return pluginSongs
+    final filteredSongs = pluginSongs
+        .where((pluginSong) {
+          final folderPath = getFolderPath(pluginSong.path);
+          return SettingsService.isFolderWhitelisted(folderPath);
+        })
         .map(
           (pluginSong) => Song(
             id: pluginSong.id.toString(),
@@ -87,6 +83,9 @@ class MusicService {
           ),
         )
         .toList();
+    
+    debugPrint('过滤后歌曲数量: ${filteredSongs.length}');
+    return filteredSongs;
   }
 
   /// 为歌曲列表异步加载封面图片（实时更新）
@@ -260,5 +259,59 @@ class MusicService {
           song.artist.toLowerCase().contains(lowerQuery) ||
           song.album.toLowerCase().contains(lowerQuery);
     }).toList();
+  }
+
+  /// 从文件路径中提取文件夹路径
+  static String getFolderPath(String filePath) {
+    try {
+      // 支持Windows和Unix路径分隔符
+      String normalizedPath = filePath.replaceAll('\\', '/');
+      
+      // 找到最后一个斜杠的位置
+      int lastSlash = normalizedPath.lastIndexOf('/');
+      if (lastSlash == -1) {
+        return '/'; // 没有路径分隔符，返回根目录
+      }
+      
+      if (lastSlash == normalizedPath.length - 1) {
+        // 路径以斜杠结尾，已经是目录
+        return normalizedPath;
+      }
+      
+      // 返回目录部分
+      String folderPath = normalizedPath.substring(0, lastSlash);
+      
+      // 处理Windows驱动器路径（如C:）
+      if (folderPath.endsWith(':')) {
+        folderPath += '/';
+      }
+      
+      // 如果结果为空（不应该发生），返回根目录
+      if (folderPath.isEmpty) {
+        return '/';
+      }
+      
+      return folderPath;
+    } catch (e) {
+      return '/';
+    }
+  }
+
+  /// 获取所有音乐文件夹
+  static Future<List<String>> getAllMusicFolders() async {
+    try {
+      final pluginSongs = await _audioPlugin.getAllSongs();
+      final folderSet = <String>{};
+      
+      for (final song in pluginSongs) {
+        final folderPath = getFolderPath(song.path);
+        folderSet.add(folderPath);
+      }
+      
+      return folderSet.toList()..sort();
+    } catch (e) {
+      debugPrint('获取音乐文件夹时出错: $e');
+      return [];
+    }
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/settings_service.dart';
+import 'folder_whitelist_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -112,6 +113,19 @@ class _SettingsPageState extends State<SettingsPage> {
               ScaffoldMessenger.of(
                 context,
               ).showSnackBar(const SnackBar(content: Text('正在扫描音乐库...')));
+            },
+          ),
+          ListTile(
+            title: const Text('文件夹白名单'),
+            subtitle: const Text('设置需要扫描的音乐文件夹'),
+            trailing: const Icon(Icons.folder),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FolderWhitelistPage(),
+                ),
+              );
             },
           ),
           _buildSectionTitle('艺术家分隔符'),

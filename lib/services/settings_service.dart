@@ -1,10 +1,12 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 /// 设置服务类
 /// 管理应用的各种用户设置，包括艺术家分隔符配置
 class SettingsService {
   static const String _artistSeparatorsKey = 'artist_separators';
   static const String _artistWhitelistKey = 'artist_whitelist';
+  static const String _folderWhitelistKey = 'folder_whitelist';
 
   /// 默认艺术家分隔符列表，按优先级排序
   static const List<String> _defaultSeparators = [
@@ -32,10 +34,14 @@ class SettingsService {
   /// 缓存的艺术家白名单
   static List<String> _cachedWhitelist = [];
 
+  /// 缓存的文件夹白名单
+  static Map<String, bool> _cachedFolderWhitelist = {};
+
   /// 初始化设置服务
   static Future<void> init() async {
     _cachedSeparators = await getArtistSeparators();
     _cachedWhitelist = await getArtistWhitelist();
+    _cachedFolderWhitelist = await getFolderWhitelist();
   }
 
   /// 获取配置的艺术家分隔符列表
@@ -112,6 +118,53 @@ class SettingsService {
   /// 获取默认艺术家白名单
   static List<String> getDefaultWhitelist() {
     return List.from(_defaultWhitelist);
+  }
+
+  /// 获取文件夹白名单
+  static Future<Map<String, bool>> getFolderWhitelist() async {
+    final prefs = await SharedPreferences.getInstance();
+    final whitelistString = prefs.getString(_folderWhitelistKey);
+
+    if (whitelistString == null || whitelistString.isEmpty) {
+      return {};
+    }
+
+    try {
+      final Map<String, dynamic> decoded = 
+          Map<String, dynamic>.from(jsonDecode(whitelistString));
+      return decoded.map((key, value) => MapEntry(key, value as bool));
+    } catch (e) {
+      return {};
+    }
+  }
+
+  /// 同步获取文件夹白名单
+  static Map<String, bool> getFolderWhitelistSync() {
+    if (_cachedFolderWhitelist.isEmpty) {
+      return {};
+    }
+    return Map.from(_cachedFolderWhitelist);
+  }
+
+  /// 保存文件夹白名单
+  static Future<void> setFolderWhitelist(Map<String, bool> whitelist) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (whitelist.isEmpty) {
+      await prefs.remove(_folderWhitelistKey);
+    } else {
+      await prefs.setString(_folderWhitelistKey, jsonEncode(whitelist));
+    }
+
+    // 更新缓存
+    _cachedFolderWhitelist = Map.from(whitelist);
+  }
+
+  /// 检查文件夹是否在白名单中
+  static bool isFolderWhitelisted(String folderPath) {
+    if (_cachedFolderWhitelist.isEmpty) {
+      return true; // 默认包含所有文件夹
+    }
+    return _cachedFolderWhitelist[folderPath] ?? true;
   }
 
   /// 使用配置的分隔符分割艺术家字符串
