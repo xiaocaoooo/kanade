@@ -74,18 +74,7 @@ class _SongsPageState extends State<SongsPage> {
     });
   }
 
-  /// 播放歌曲
-  void _playSong(Song song) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PlayerPage(
-          initialSong: song,
-          playlist: _allSongs,
-        ),
-      ),
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -184,7 +173,8 @@ class _SongsPageState extends State<SongsPage> {
                 final song = songs[index];
                 return SongItem(
                   song: song,
-                  onTap: () => _playSong(song),
+                  playlist: songs,
+                  play: true,
                 );
               },
             );

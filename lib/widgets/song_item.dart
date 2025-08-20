@@ -1,19 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/song.dart';
 import '../services/cover_cache_service.dart';
 import '../services/music_service.dart';
+import '../services/audio_player_service.dart';
+import '../pages/player_page.dart';
 
 /// 歌曲项组件
 /// 用于统一展示歌曲信息，支持封面显示和点击事件
-/// 支持自动加载专辑封面图片
+/// 支持自动加载专辑封面图片和播放跳转功能
 class SongItem extends StatefulWidget {
   final Song song;
+  final List<Song> playlist;
+  final bool play;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
 
   const SongItem({
     super.key,
     required this.song,
+    required this.playlist,
+    this.play = true,
     this.onTap,
     this.onLongPress,
   });
@@ -91,9 +98,44 @@ class _SongItemState extends State<SongItem> {
       ),
       subtitle: _buildSubtitle(),
       trailing: _buildTrailing(),
-      onTap: widget.onTap,
+      onTap: () {
+        if (widget.onTap != null) {
+          widget.onTap!();
+        } else {
+          _handleSongTap(context);
+        }
+      },
       onLongPress: widget.onLongPress,
     );
+  }
+
+  /// 处理歌曲点击事件
+  /// 如果play为true，则播放歌曲并跳转到播放器页面
+  void _handleSongTap(BuildContext context) {
+    // 使用延迟执行避免构建期间的setState问题
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.play) {
+        // 使用Provider获取音频服务并设置播放列表
+        final playerService = Provider.of<AudioPlayerService>(context, listen: false);
+        final songIndex = widget.playlist.indexWhere((s) => s.id == widget.song.id);
+        
+        if (songIndex != -1) {
+          playerService.setPlaylist(widget.playlist, initialIndex: songIndex);
+          playerService.play();
+        }
+      }
+
+      // 无论是否播放，都跳转到播放器页面
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PlayerPage(
+            initialSong: widget.song,
+            playlist: widget.playlist,
+          ),
+        ),
+      );
+    });
   }
 
   /// 构建封面组件

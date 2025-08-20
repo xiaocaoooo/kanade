@@ -22,18 +22,17 @@ class PlayerPage extends StatefulWidget {
 
 class _PlayerPageState extends State<PlayerPage> {
   late AudioPlayerService _playerService;
-  late MediaNotificationService _notificationService;
-  bool _isSeeking = false;
 
   @override
   void initState() {
-    super.initState();
-    _notificationService = MediaNotificationService();
-    
+    super.initState();    
     // 使用Provider提供的全局音频服务
     _playerService = Provider.of<AudioPlayerService>(context, listen: false);
     
-    _initializePlayer();
+    // 延迟初始化，避免在构建过程中调用setState
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializePlayer();
+    });
   }
 
   void _initializePlayer() {
@@ -43,23 +42,14 @@ class _PlayerPageState extends State<PlayerPage> {
     }
     
     // 播放初始歌曲
+    print("===========");
     if (widget.initialSong != null) {
       _playerService.playSong(widget.initialSong!);
     }
-    
-    // 设置通知回调
-    _notificationService.initialize();
-    _notificationService.onPlay = () => _playerService.play();
-    _notificationService.onPause = () => _playerService.pause();
-    _notificationService.onNext = () => _playerService.next();
-    _notificationService.onPrevious = () => _playerService.previous();
-    _notificationService.onStop = () => _playerService.stop();
   }
 
   @override
   void dispose() {
-    // 只释放通知服务，不释放音频服务
-    _notificationService.dispose();
     super.dispose();
   }
 

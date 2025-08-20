@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/music_service.dart';
 import '../models/song.dart';
+import '../services/audio_player_service.dart';
 import '../widgets/song_item.dart';
 
 /// 文件夹页面
@@ -126,7 +128,7 @@ class _FolderPageState extends State<FolderPage> {
 
 /// 文件夹歌曲页面
 /// 显示特定文件夹中的所有歌曲
-class FolderSongsPage extends StatefulWidget {
+class FolderSongsPage extends StatelessWidget {
   final String folderName;
   final List<Song> songs;
 
@@ -137,60 +139,62 @@ class FolderSongsPage extends StatefulWidget {
   });
 
   @override
-  State<FolderSongsPage> createState() => _FolderSongsPageState();
-}
-
-class _FolderSongsPageState extends State<FolderSongsPage> {
-  late List<Song> _songs;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _songs = widget.songs;
-    _loadAlbumArts();
-  }
-
-  /// 异步加载专辑封面
-  Future<void> _loadAlbumArts() async {
-    if (_songs.isEmpty) {
-      setState(() {
-        _isLoading = false;
-      });
-      return;
-    }
-
-    await MusicService.loadAlbumArtsWithCallback(_songs, (updatedSongs) {
-      if (mounted) {
-        setState(() {
-          _songs = updatedSongs;
-          _isLoading = false;
-        });
-      }
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.folderName)),
-      body:
-          _isLoading && _songs.isEmpty
-              ? const Center(child: CircularProgressIndicator())
-              : _songs.isEmpty
-              ? const Center(child: Text('该文件夹中没有歌曲'))
-              : ListView.builder(
-                itemCount: _songs.length,
-                itemBuilder: (context, index) {
-                  final song = _songs[index];
-                  return SongItem(
-                    song: song,
-                    onTap: () {
-                      // TODO: 实现播放功能
-                    },
-                  );
-                },
-              ),
+      appBar: AppBar(title: Text(folderName)),
+      body: songs.isEmpty
+          ? const Center(child: Text('该文件夹暂无歌曲'))
+          : ListView.builder(
+              itemCount: songs.length,
+              itemBuilder: (context, index) {
+                final song = songs[index];
+                return SongItem(
+                  song: song,
+                  playlist: songs,
+                  play: true,
+                  onLongPress: () => _showSongMenu(context, song),
+                );
+              },
+            ),
+    );
+  }
+
+
+
+  void _showSongMenu(BuildContext context, Song song) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.play_arrow),
+              title: const Text('播放'),
+              onTap: () {
+                Navigator.pop(context);
+                // SongItem会自动处理播放和跳转
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.add_to_queue),
+              title: const Text('添加到播放队列'),
+              onTap: () {
+                Navigator.pop(context);
+                // TODO: 实现添加到队列功能
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.info),
+              title: const Text('歌曲信息'),
+              onTap: () {
+                Navigator.pop(context);
+                // TODO: 实现查看歌曲信息
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -177,11 +177,11 @@ class AudioPlayerService extends ChangeNotifier {
 
   /// 播放指定歌曲
   Future<void> playSong(Song song) async {
-    if (song.path.isEmpty) {
-      _playerState = PlayerState.error;
-      notifyListeners();
-      return;
-    }
+    // if (song.path.isEmpty) {
+    //   _playerState = PlayerState.error;
+    //   notifyListeners();
+    //   return;
+    // }
 
     try {
       _playerState = PlayerState.loading;

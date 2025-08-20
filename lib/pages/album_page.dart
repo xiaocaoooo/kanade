@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/music_service.dart';
+import '../services/audio_player_service.dart';
 import '../models/song.dart';
 import '../widgets/song_item.dart';
 
@@ -257,12 +259,51 @@ class _AlbumSongsPageState extends State<AlbumSongsPage> {
                     final song = _songs[index];
                     return SongItem(
                       song: song,
-                      onTap: () {
-                        // TODO: 实现播放功能
-                      },
+                      playlist: _songs,
+                      play: true,
+                      onLongPress: () => _showSongMenu(context, song),
                     );
                   },
                 ),
+    );
+  }
+
+
+
+  void _showSongMenu(BuildContext context, Song song) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.play_arrow),
+              title: const Text('播放'),
+              onTap: () {
+                Navigator.pop(context);
+                // SongItem会自动处理播放和跳转
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.add_to_queue),
+              title: const Text('添加到播放队列'),
+              onTap: () {
+                Navigator.pop(context);
+                // TODO: 实现添加到队列功能
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.info),
+              title: const Text('歌曲信息'),
+              onTap: () {
+                Navigator.pop(context);
+                // TODO: 实现查看歌曲信息
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
