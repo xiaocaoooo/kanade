@@ -235,7 +235,7 @@ packages:
   kanade_audio_plugin:
     dependency: "direct main"
     description:
-      path: "../kanade_audio_plugin"
+      path: kanade_audio_plugin
       relative: true
     source: path
     version: "0.0.1"
