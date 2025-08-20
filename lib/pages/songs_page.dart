@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/song.dart';
 import '../services/music_service.dart';
 import '../utils/permission_helper.dart';
+import '../widgets/song_item.dart';
 import 'player_page.dart';
 
 /// 歌曲列表页面
@@ -21,8 +22,6 @@ class _SongsPageState extends State<SongsPage> {
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final Map<String, Uint8List?> _coverCache = {};
-  final Set<String> _loadingCovers = {};
 
   @override
   void initState() {
@@ -55,9 +54,9 @@ class _SongsPageState extends State<SongsPage> {
       }
     }
 
-    // 先加载歌曲基本信息（不包含封面）
+    // 加载歌曲
     setState(() {
-      _songsFuture = MusicService.getAllSongsWithoutArt();
+      _songsFuture = MusicService.getAllSongs();
     });
 
     final songs = await _songsFuture ?? [];
@@ -65,41 +64,6 @@ class _SongsPageState extends State<SongsPage> {
       _allSongs = songs;
       _filteredSongs = songs;
     });
-
-    // 不再批量加载封面，改为按需加载
-    // _loadAlbumArts();
-  }
-
-  /// 按需加载指定歌曲的封面
-  Future<void> _loadCoverForSong(Song song) async {
-    if (song.albumId == null || _coverCache.containsKey(song.albumId)) {
-      return;
-    }
-
-    if (_loadingCovers.contains(song.albumId)) {
-      return; // 避免重复加载
-    }
-
-    _loadingCovers.add(song.albumId!);
-
-    try {
-      final cover = await MusicService.loadAlbumArtForSong(song);
-      if (mounted) {
-        setState(() {
-          _coverCache[song.albumId!] = cover;
-        });
-      }
-    } catch (e) {
-      debugPrint('加载歌曲封面失败: ${song.title} - $e');
-      // 加载失败，缓存空值避免重复尝试
-      if (mounted) {
-        setState(() {
-          _coverCache[song.albumId!] = null;
-        });
-      }
-    } finally {
-      _loadingCovers.remove(song.albumId!);
-    }
   }
 
   /// 处理搜索变化
@@ -139,7 +103,6 @@ class _SongsPageState extends State<SongsPage> {
                 )
                 : const Text('本地音乐'),
         actions: [
-
           IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search),
             onPressed: () {
@@ -219,88 +182,15 @@ class _SongsPageState extends State<SongsPage> {
               itemCount: songs.length,
               itemBuilder: (context, index) {
                 final song = songs[index];
-                
-                // 按需加载可见项的封面
-                if (song.albumId != null && 
-                    !_coverCache.containsKey(song.albumId) && 
-                    !_loadingCovers.contains(song.albumId)) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    debugPrint(song.toString());
-                    _loadCoverForSong(song);
-                  });
-                }
-                
-                return _buildSongItem(song);
+                return SongItem(
+                  song: song,
+                  onTap: () => _playSong(song),
+                );
               },
             );
           },
         ),
       ),
-    );
-  }
-
-  /// 构建歌曲列表项
-  Widget _buildSongItem(Song song) {
-    final cover = song.albumId != null ? _coverCache[song.albumId] : null;
-    
-    return ListTile(
-      leading: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceVariant,
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: cover != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: Image.memory(
-                  cover,
-                  width: 48,
-                  height: 48,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(Icons.music_note, size: 24);
-                  },
-                ),
-              )
-            : const Icon(Icons.music_note, size: 24),
-      ),
-      title: Text(
-        song.title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontWeight: FontWeight.w500),
-      ),
-      subtitle: Text(
-        '${song.artist} • ${song.album}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 12,
-          color: Theme.of(context).textTheme.bodySmall?.color,
-        ),
-      ),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(
-            song.formattedDuration,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-          ),
-          Text(
-            song.formattedSize,
-            style: TextStyle(
-              fontSize: 11,
-              color: Theme.of(context).textTheme.bodySmall?.color,
-            ),
-          ),
-        ],
-      ),
-      onTap: () {
-        _playSong(song);
-      },
     );
   }
 }
