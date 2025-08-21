@@ -21,9 +21,7 @@ class MiniPlayer extends StatelessWidget {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => PlayerPage(),
-              ),
+              MaterialPageRoute(builder: (context) => PlayerPage()),
             );
           },
           child: Container(
@@ -42,34 +40,39 @@ class MiniPlayer extends StatelessWidget {
                 // 专辑封面
                 Padding(
                   padding: const EdgeInsets.all(8.0),
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: () {
-                      final albumArt = player.getAlbumArtForSong(player.currentSong!);
-                      if (albumArt != null) {
-                        return ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: Image.memory(
-                            albumArt,
-                            fit: BoxFit.cover,
-                          ),
+                  child: Hero(
+                    tag: 'album-${player.currentSong!.id}',
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color:
+                            Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: () {
+                        final albumArt = player.getAlbumArtForSong(
+                          player.currentSong!,
                         );
-                      } else {
-                        // 异步加载封面
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          player.loadAlbumArtForSong(player.currentSong!);
-                        });
-                        return const Icon(Icons.music_note, size: 24);
-                      }
-                    }(),
+                        if (albumArt != null) {
+                          return ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: Image.memory(albumArt, fit: BoxFit.cover),
+                          );
+                        } else {
+                          // 异步加载封面
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            player.loadAlbumArtForSong(player.currentSong!);
+                          });
+                          return const Icon(Icons.music_note, size: 24);
+                        }
+                      }(),
+                    ),
                   ),
                 ),
-                
+
                 // 歌曲信息
                 Expanded(
                   child: Column(
@@ -81,21 +84,21 @@ class MiniPlayer extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w500,
-                            ),
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                       Text(
                         player.currentSong?.artist ?? '未知艺术家',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).textTheme.bodySmall?.color,
-                            ),
+                          color: Theme.of(context).textTheme.bodySmall?.color,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                
+
                 // 播放控制
                 Row(
                   mainAxisSize: MainAxisSize.min,

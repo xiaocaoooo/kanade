@@ -153,14 +153,17 @@ class _SongItemState extends State<SongItem> {
     final isLoading = CoverCacheManager.instance.isLoading(albumId);
 
     if (cover != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.memory(
-          cover,
-          width: 56,
-          height: 56,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => _buildDefaultCover(),
+      return Hero(
+        tag: 'album-${widget.song.id}',
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.memory(
+            cover,
+            width: 56,
+            height: 56,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => _buildDefaultCover(),
+          ),
         ),
       );
     }

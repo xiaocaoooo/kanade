@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:palette_generator/palette_generator.dart';
 import '../models/song.dart';
 import '../services/audio_player_service.dart';
+import '../services/color_cache_service.dart';
+import '../widgets/color_blender.dart';
 
 /// 音乐播放器页面
 /// 提供完整的播放控制界面，包括播放/暂停、进度条、音量控制等
@@ -17,6 +20,10 @@ class PlayerPage extends StatefulWidget {
 
 class _PlayerPageState extends State<PlayerPage> {
   late AudioPlayerService _playerService;
+  List<Color> _extractedColors = [Colors.black];
+  double _blendIntensity = 8;
+  bool _isLoadingColors = false;
+  String? _lastSongId;
 
   @override
   void initState() {
@@ -24,10 +31,24 @@ class _PlayerPageState extends State<PlayerPage> {
     // 使用Provider提供的全局音频服务
     _playerService = Provider.of<AudioPlayerService>(context, listen: false);
 
+    // 添加歌曲变化监听器
+    _playerService.addListener(_onCurrentSongChanged);
+
     // 延迟初始化，避免在构建过程中调用setState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializePlayer();
+      _extractColorsFromCurrentSong();
     });
+  }
+
+  /// 当前歌曲变化时的回调
+  void _onCurrentSongChanged() {
+    if (mounted) {
+      if (_lastSongId != _playerService.currentSong?.id) {
+        _lastSongId = _playerService.currentSong?.id;
+        _extractColorsFromCurrentSong();
+      }
+    }
   }
 
   void _initializePlayer() {
@@ -54,11 +75,115 @@ class _PlayerPageState extends State<PlayerPage> {
       _playerService.setPlaylist([widget.initialSong!]);
       _playerService.play();
     }
+    _lastSongId = widget.initialSong?.id;
   }
 
   @override
   void dispose() {
+    // 移除监听器
+    _playerService.removeListener(_onCurrentSongChanged);
     super.dispose();
+  }
+
+  /// 从当前歌曲的专辑封面提取颜色
+  /// 优先使用缓存，无缓存时提取并缓存
+  Future<void> _extractColorsFromCurrentSong() async {
+    final currentSong = _playerService.currentSong;
+    if (currentSong == null) return;
+
+    // 如果歌曲没有变化，直接返回
+    if (_lastSongId == currentSong.id) {
+      return;
+    }
+
+    _lastSongId = currentSong.id;
+
+    // 检查缓存
+    final cachedColors = ColorCacheService.instance.getColors(currentSong.id);
+    if (cachedColors != null) {
+      setState(() {
+        _extractedColors = cachedColors;
+        _isLoadingColors = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingColors = true;
+    });
+
+    try {
+      final albumArt = _playerService.getAlbumArtForSong(currentSong);
+      List<Color> extractedColors = [];
+
+      if (albumArt != null) {
+        // 从内存图片提取颜色
+        final imageProvider = MemoryImage(albumArt);
+        final palette = await PaletteGenerator.fromImageProvider(imageProvider);
+
+        // 提取主要颜色
+        final colors = <Color>[];
+
+        if (palette.dominantColor != null) {
+          colors.add(palette.dominantColor!.color);
+        }
+        if (palette.vibrantColor != null) {
+          colors.add(palette.vibrantColor!.color);
+        }
+        if (palette.mutedColor != null) {
+          colors.add(palette.mutedColor!.color);
+        }
+        if (palette.darkVibrantColor != null) {
+          colors.add(palette.darkVibrantColor!.color);
+        }
+        if (palette.lightVibrantColor != null) {
+          colors.add(palette.lightVibrantColor!.color);
+        }
+
+        extractedColors = colors.take(5).toList();
+      } else if (currentSong.albumId != null) {
+        // 异步加载封面并提取颜色
+        await _playerService.loadAlbumArtForSong(currentSong);
+        final loadedArt = _playerService.getAlbumArtForSong(currentSong);
+        if (loadedArt != null) {
+          final imageProvider = MemoryImage(loadedArt);
+          final palette = await PaletteGenerator.fromImageProvider(
+            imageProvider,
+          );
+
+          final colors = <Color>[];
+          if (palette.dominantColor != null)
+            colors.add(palette.dominantColor!.color);
+          if (palette.vibrantColor != null)
+            colors.add(palette.vibrantColor!.color);
+          if (palette.mutedColor != null) colors.add(palette.mutedColor!.color);
+
+          if (colors.length < 3) {
+            colors.addAll([Colors.deepPurple, Colors.purple, Colors.indigo]);
+          }
+
+          extractedColors = colors.take(5).toList();
+        }
+      }
+
+      // 如果没有提取到颜色，使用默认颜色
+      if (extractedColors.isEmpty) {
+        extractedColors = [Colors.deepPurple, Colors.purple, Colors.indigo];
+      }
+
+      // 缓存提取的颜色
+      ColorCacheService.instance.cacheColors(currentSong.id, extractedColors);
+
+      setState(() {
+        _extractedColors = extractedColors;
+        _isLoadingColors = false;
+      });
+    } catch (e) {
+      debugPrint('颜色提取失败: $e');
+      setState(() {
+        _isLoadingColors = false;
+      });
+    }
   }
 
   @override
@@ -66,41 +191,68 @@ class _PlayerPageState extends State<PlayerPage> {
     return ChangeNotifierProvider.value(
       value: _playerService,
       child: Scaffold(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        appBar: AppBar(
-          title: const Text('正在播放'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.queue_music),
-              onPressed: () => _showPlaylistDialog(),
-            ),
-          ],
-        ),
+        extendBodyBehindAppBar: true,
         body: Consumer<AudioPlayerService>(
           builder: (context, player, child) {
             if (player.currentSong == null) {
               return const Center(child: Text('暂无播放歌曲'));
             }
 
-            return Column(
+            return Stack(
               children: [
-                // 专辑封面区域
-                _buildAlbumCover(player.currentSong!),
+                // 动态颜色背景
+                Positioned.fill(
+                  child: ColorBlender(
+                    colors: _extractedColors,
+                    blendIntensity: _blendIntensity,
+                    width: MediaQuery.of(context).size.width,
+                    height: MediaQuery.of(context).size.height,
+                    shapeType: BlendShapeType.circle,
+                    enableAnimation: true,
+                  ),
+                ),
 
-                // 歌曲信息
-                _buildSongInfo(player.currentSong!),
+                // 内容层 - 半透明遮罩
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.3),
+                          Colors.black.withOpacity(0.5),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
 
-                // 播放进度
-                _buildProgressControls(),
+                // 主要内容
+                SafeArea(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // 专辑封面区域
+                      _buildAlbumCover(player.currentSong!),
 
-                // 播放控制
-                _buildPlaybackControls(),
+                      // 歌曲信息
+                      _buildSongInfo(player.currentSong!),
 
-                // 音量控制
-                _buildVolumeControls(),
+                      // 播放进度
+                      _buildProgressControls(),
 
-                // 播放模式控制
-                _buildModeControls(),
+                      // 播放控制
+                      _buildPlaybackControls(),
+
+                      // 音量控制
+                      _buildVolumeControls(),
+
+                      // 播放模式控制
+                      _buildModeControls(),
+                    ],
+                  ),
+                ),
               ],
             );
           },
@@ -115,49 +267,61 @@ class _PlayerPageState extends State<PlayerPage> {
       builder: (context, player, child) {
         final albumArt = player.getAlbumArtForSong(song);
 
-        // 异步加载封面
+        // 异步加载封面并提取颜色
         if (albumArt == null && song.albumId != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            player.loadAlbumArtForSong(song);
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            await player.loadAlbumArtForSong(song);
+            // 封面加载完成后提取颜色
+            if (mounted) {
+              await _extractColorsFromCurrentSong();
+            }
+          });
+        } else if (albumArt != null && _extractedColors.isEmpty) {
+          // 如果已有封面但颜色未提取，则提取颜色
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            if (mounted) {
+              await _extractColorsFromCurrentSong();
+            }
           });
         }
 
-        return Expanded(
-          flex: 3,
-          child: Padding(
-            padding: const EdgeInsets.all(32.0),
-            child: Hero(
-              tag: 'album-${song.id}',
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child:
-                      albumArt != null
-                          ? Image.memory(
-                            albumArt,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            height: double.infinity,
-                          )
-                          : Container(
-                            color: Colors.grey[300],
-                            child: const Icon(
-                              Icons.music_note,
-                              size: 100,
-                              color: Colors.grey,
-                            ),
+        final screenWidth = MediaQuery.of(context).size.width;
+
+        return Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Hero(
+            tag: 'album-${song.id}',
+            child: Container(
+              width: screenWidth * .8,
+              height: screenWidth * .8,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child:
+                    albumArt != null
+                        ? Image.memory(
+                          albumArt,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                        )
+                        : Container(
+                          color: Colors.grey[300],
+                          child: const Icon(
+                            Icons.music_note,
+                            size: 100,
+                            color: Colors.grey,
                           ),
-                ),
+                        ),
               ),
             ),
           ),
@@ -174,29 +338,34 @@ class _PlayerPageState extends State<PlayerPage> {
         children: [
           Text(
             song.title,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            song.artist,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              shadows: [
+                Shadow(
+                  color: Colors.black.withOpacity(0.5),
+                  offset: const Offset(0, 2),
+                  blurRadius: 4,
+                ),
+              ],
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
           Text(
-            song.album,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: Colors.grey[500]),
+            song.artist,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: Colors.white.withOpacity(0.9),
+              shadows: [
+                Shadow(
+                  color: Colors.black.withOpacity(0.5),
+                  offset: const Offset(0, 1),
+                  blurRadius: 3,
+                ),
+              ],
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
@@ -216,12 +385,10 @@ class _PlayerPageState extends State<PlayerPage> {
             children: [
               SliderTheme(
                 data: SliderTheme.of(context).copyWith(
-                  activeTrackColor: Theme.of(context).colorScheme.primary,
-                  inactiveTrackColor: Colors.grey[300],
-                  thumbColor: Theme.of(context).colorScheme.primary,
-                  overlayColor: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.1),
+                  activeTrackColor: Colors.white,
+                  inactiveTrackColor: Colors.white.withOpacity(0.3),
+                  thumbColor: Colors.white,
+                  overlayColor: Colors.white.withOpacity(0.2),
                   thumbShape: const RoundSliderThumbShape(
                     enabledThumbRadius: 8.0,
                   ),
@@ -247,11 +414,19 @@ class _PlayerPageState extends State<PlayerPage> {
                   children: [
                     Text(
                       _formatDuration(player.position),
-                      style: const TextStyle(fontSize: 12),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Text(
                       _formatDuration(player.duration),
-                      style: const TextStyle(fontSize: 12),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -271,13 +446,14 @@ class _PlayerPageState extends State<PlayerPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             IconButton(
-              icon: const Icon(Icons.skip_previous),
+              icon: const Icon(Icons.skip_previous, color: Colors.white),
               iconSize: 32,
               onPressed: player.previous,
             ),
             const SizedBox(width: 20),
             FloatingActionButton(
-              backgroundColor: Theme.of(context).colorScheme.primary,
+              backgroundColor: Colors.white.withOpacity(0.2),
+              elevation: 4,
               child: Icon(
                 player.isPlaying ? Icons.pause : Icons.play_arrow,
                 size: 32,
@@ -293,7 +469,7 @@ class _PlayerPageState extends State<PlayerPage> {
             ),
             const SizedBox(width: 20),
             IconButton(
-              icon: const Icon(Icons.skip_next),
+              icon: const Icon(Icons.skip_next, color: Colors.white),
               iconSize: 32,
               onPressed: player.next,
             ),
@@ -311,16 +487,24 @@ class _PlayerPageState extends State<PlayerPage> {
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
           child: Row(
             children: [
-              const Icon(Icons.volume_down, size: 20),
+              const Icon(Icons.volume_down, size: 20, color: Colors.white),
               Expanded(
-                child: Slider(
-                  value: player.volume,
-                  onChanged: (value) => player.setVolume(value),
-                  min: 0.0,
-                  max: 1.0,
+                child: SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    activeTrackColor: Colors.white,
+                    inactiveTrackColor: Colors.white.withOpacity(0.3),
+                    thumbColor: Colors.white,
+                    overlayColor: Colors.white.withOpacity(0.2),
+                  ),
+                  child: Slider(
+                    value: player.volume,
+                    onChanged: (value) => player.setVolume(value),
+                    min: 0.0,
+                    max: 1.0,
+                  ),
                 ),
               ),
-              const Icon(Icons.volume_up, size: 20),
+              const Icon(Icons.volume_up, size: 20, color: Colors.white),
             ],
           ),
         );
@@ -342,7 +526,8 @@ class _PlayerPageState extends State<PlayerPage> {
                     : player.playMode == PlayMode.repeatOne
                     ? Icons.repeat_one
                     : Icons.shuffle,
-                color: Theme.of(context).colorScheme.primary,
+                color: Colors.white,
+                size: 28,
               ),
               onPressed: player.togglePlayMode,
               tooltip: _getPlayModeTooltip(player.playMode),
@@ -434,4 +619,16 @@ class _PlayerPageState extends State<PlayerPage> {
         return '列表循环';
     }
   }
+}
+
+/// 清除颜色缓存
+void _clearColorCache() {
+  ColorCacheService.instance.clearAllCache();
+  debugPrint('颜色缓存已清除');
+}
+
+/// 显示缓存统计信息
+void _showCacheStats() {
+  final stats = ColorCacheService.instance.getCacheStats();
+  debugPrint('颜色缓存统计: $stats');
 }
