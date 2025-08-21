@@ -193,31 +193,63 @@ class SettingsService {
       }
     }
 
+    // 先处理白名单艺术家，将它们保护起来不被分割
+    String protectedArtist = trimmedArtist;
+    final protectedArtists = <String, String>{}; // 原始值 -> 保护值
+    
+    // 按长度降序排序，优先处理更长的白名单艺术家
+    final sortedWhitelist = whitelist.toList()..sort((a, b) => b.length.compareTo(a.length));
+    
+    for (int i = 0; i < sortedWhitelist.length; i++) {
+      final whiteArtist = sortedWhitelist[i];
+      final placeholder = '___WHITELIST_${i}___';
+      
+      if (protectedArtist.toLowerCase().contains(whiteArtist.toLowerCase())) {
+        protectedArtists[placeholder] = whiteArtist;
+        protectedArtist = protectedArtist.replaceAll(
+          RegExp(whiteArtist, caseSensitive: false), 
+          placeholder
+        );
+      }
+    }
+
     // 使用第一个找到的分隔符进行分割
     for (final separator in separators) {
-      if (trimmedArtist.contains(separator)) {
-        final parts = trimmedArtist.split(separator);
+      if (protectedArtist.contains(separator)) {
+        final parts = protectedArtist.split(separator);
         final result = <String>[];
         
-        // 遍历分割后的部分，检查是否属于白名单
+        // 遍历分割后的部分，恢复白名单艺术家
         for (var part in parts) {
           final trimmedPart = part.trim();
           if (trimmedPart.isNotEmpty) {
-            bool isInWhitelist = false;
-            for (final whiteArtist in whitelist) {
-              if (whiteArtist.toLowerCase() == trimmedPart.toLowerCase()) {
-                result.add(whiteArtist);
-                isInWhitelist = true;
-                break;
-              }
+            String restoredPart = trimmedPart;
+            
+            // 恢复被保护的白名单艺术家
+            for (final entry in protectedArtists.entries) {
+              final placeholder = entry.key;
+              final original = entry.value;
+              restoredPart = restoredPart.replaceAll(placeholder, original);
             }
-            if (!isInWhitelist) {
-              result.add(trimmedPart);
+            
+            if (restoredPart.trim().isNotEmpty) {
+              result.add(restoredPart.trim());
             }
           }
         }
         
-        return result.isNotEmpty ? result : ['未知艺术家'];
+        // 去重并保持顺序
+        final uniqueResult = <String>[];
+        final seen = <String>{};
+        for (final item in result) {
+          final normalized = item.toLowerCase();
+          if (!seen.contains(normalized)) {
+            seen.add(normalized);
+            uniqueResult.add(item);
+          }
+        }
+        
+        return uniqueResult.isNotEmpty ? uniqueResult : ['未知艺术家'];
       }
     }
     
