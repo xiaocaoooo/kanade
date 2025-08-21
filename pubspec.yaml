@@ -48,6 +48,7 @@ dependencies:
   kanada_volume:
     path: ./kanada_volume
   palette_generator: ^0.3.3+7
+  audio_metadata_reader: ^1.4.1
 
 dev_dependencies:
   flutter_test:

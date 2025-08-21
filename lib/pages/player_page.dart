@@ -5,6 +5,8 @@ import '../models/song.dart';
 import '../services/audio_player_service.dart';
 import '../services/color_cache_service.dart';
 import '../widgets/color_blender.dart';
+// 在文件顶部添加导入
+import 'lyrics_page.dart';
 
 /// 音乐播放器页面
 /// 提供完整的播放控制界面，包括播放/暂停、进度条、音量控制等
@@ -21,7 +23,7 @@ class PlayerPage extends StatefulWidget {
 class _PlayerPageState extends State<PlayerPage> {
   late AudioPlayerService _playerService;
   List<Color> _extractedColors = [Colors.black];
-  double _blendIntensity = 8;
+  final double _blendIntensity = 8;
   bool _isLoadingColors = false;
   String? _lastSongId;
 
@@ -148,10 +150,12 @@ class _PlayerPageState extends State<PlayerPage> {
           );
 
           final colors = <Color>[];
-          if (palette.dominantColor != null)
+          if (palette.dominantColor != null) {
             colors.add(palette.dominantColor!.color);
-          if (palette.vibrantColor != null)
+          }
+          if (palette.vibrantColor != null) {
             colors.add(palette.vibrantColor!.color);
+          }
           if (palette.mutedColor != null) colors.add(palette.mutedColor!.color);
 
           if (colors.length < 3) {
@@ -513,6 +517,12 @@ class _PlayerPageState extends State<PlayerPage> {
               tooltip: _getPlayModeTooltip(player.playMode),
             ),
             IconButton(
+              icon: const Icon(Icons.lyrics_outlined, color: Colors.white),
+              iconSize: 28,
+              onPressed: _showLyricsPage,
+              tooltip: '查看歌词',
+            ),
+            IconButton(
               icon: const Icon(Icons.playlist_play, color: Colors.white),
               iconSize: 28,
               onPressed: _showPlaylistDialog,
@@ -522,6 +532,19 @@ class _PlayerPageState extends State<PlayerPage> {
         );
       },
     );
+  }
+
+  /// 显示歌词页面
+  void _showLyricsPage() {
+    final currentSong = _playerService.currentSong;
+    if (currentSong != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => LyricsPage(song: currentSong),
+        ),
+      );
+    }
   }
 
   /// 显示播放列表对话框

@@ -28,7 +28,7 @@ class ColorBlender extends StatefulWidget {
   final bool enableAnimation;
 
   const ColorBlender({
-    Key? key,
+    super.key,
     required this.colors,
     this.blendIntensity = 0.5,
     this.width = 300,
@@ -36,7 +36,7 @@ class ColorBlender extends StatefulWidget {
     this.shapeType = BlendShapeType.circle,
     this.animationDuration = const Duration(seconds: 3),
     this.enableAnimation = true,
-  }) : super(key: key);
+  });
 
   @override
   State<ColorBlender> createState() => _ColorBlenderState();
@@ -409,17 +409,17 @@ class ColorBlenderPanel extends StatefulWidget {
   final ValueChanged<double>? onBlendIntensityChanged;
 
   const ColorBlenderPanel({
-    Key? key,
+    super.key,
     this.onColorsChanged,
     this.onBlendIntensityChanged,
-  }) : super(key: key);
+  });
 
   @override
   State<ColorBlenderPanel> createState() => _ColorBlenderPanelState();
 }
 
 class _ColorBlenderPanelState extends State<ColorBlenderPanel> {
-  List<Color> _colors = [
+  final List<Color> _colors = [
     Colors.red,
     Colors.blue,
     Colors.green,
@@ -570,8 +570,7 @@ class _ColorBlenderPanelState extends State<ColorBlenderPanel> {
 class ColorPickerDialog extends StatefulWidget {
   final Color initialColor;
 
-  const ColorPickerDialog({Key? key, required this.initialColor})
-    : super(key: key);
+  const ColorPickerDialog({super.key, required this.initialColor});
 
   @override
   State<ColorPickerDialog> createState() => _ColorPickerDialogState();
@@ -630,7 +629,7 @@ class ColorPicker extends StatelessWidget {
   final double runSpacing;
 
   const ColorPicker({
-    Key? key,
+    super.key,
     required this.color,
     required this.onColorChanged,
     this.width = 40,
@@ -638,7 +637,7 @@ class ColorPicker extends StatelessWidget {
     this.borderRadius = 4,
     this.spacing = 8,
     this.runSpacing = 8,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../lib/services/audio_player_service.dart';
+import 'package:kanade/services/audio_player_service.dart';
 
 /// 音量控制示例页面
 /// 展示如何使用新的kanada_volume集成功能

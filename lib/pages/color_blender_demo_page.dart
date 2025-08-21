@@ -3,7 +3,7 @@ import '../widgets/color_blender.dart';
 
 /// 混色组件演示页面
 class ColorBlenderDemoPage extends StatefulWidget {
-  const ColorBlenderDemoPage({Key? key}) : super(key: key);
+  const ColorBlenderDemoPage({super.key});
 
   @override
   State<ColorBlenderDemoPage> createState() => _ColorBlenderDemoPageState();

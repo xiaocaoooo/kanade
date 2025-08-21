@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 
 class PluginDiagnostic extends StatefulWidget {
+  const PluginDiagnostic({super.key});
+
   @override
   _PluginDiagnosticState createState() => _PluginDiagnosticState();
 }
@@ -129,20 +131,20 @@ class _PluginDiagnosticState extends State<PluginDiagnostic> {
             SizedBox(height: 20),
             ElevatedButton(
               onPressed: _testPluginRegistration,
-              child: Text('测试插件'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
               ),
+              child: Text('测试插件'),
             ),
             SizedBox(height: 10),
             ElevatedButton(
               onPressed: _requestPermissions,
-              child: Text('请求权限'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
               ),
+              child: Text('请求权限'),
             ),
             SizedBox(height: 20),
             Card(

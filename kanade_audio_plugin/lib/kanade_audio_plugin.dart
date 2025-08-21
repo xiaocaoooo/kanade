@@ -206,7 +206,7 @@ class KanadeAudioPlugin {
   /// 获取设备中所有歌曲
   Future<List<PluginSong>> getAllSongs() async {
     final songsJson = await KanadeAudioPluginPlatform.instance.getAllSongs();
-    final songsList = List.from(songsJson as List);
+    final songsList = List.from(songsJson);
     return songsList.map((song) => PluginSong.fromMap(Map<String, dynamic>.from(song as Map))).toList();
   }
 

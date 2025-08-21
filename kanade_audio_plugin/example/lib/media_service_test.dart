@@ -4,7 +4,7 @@ import 'package:kanade_audio_plugin/kanade_audio_plugin.dart';
 /// 媒体服务测试页面
 /// 用于测试kanade_audio_plugin的媒体服务功能
 class MediaServiceTestPage extends StatefulWidget {
-  const MediaServiceTestPage({Key? key}) : super(key: key);
+  const MediaServiceTestPage({super.key});
 
   @override
   State<MediaServiceTestPage> createState() => _MediaServiceTestPageState();

@@ -2,3 +2,4 @@
 // 统一导出所有服务类，方便其他文件引用
 
 export 'cover_cache_service.dart';
+export 'lyrics_service.dart';

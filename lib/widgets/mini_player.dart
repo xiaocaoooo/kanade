@@ -65,7 +65,7 @@ class _MiniPlayerState extends State<MiniPlayer> {
       debugPrint('开始预计算歌曲 ${song.id} 的颜色');
       
       // 获取专辑封面
-      final albumArt = await _playerService.getAlbumArtForSong(song);
+      final albumArt = _playerService.getAlbumArtForSong(song);
       if (albumArt == null) {
         debugPrint('歌曲 ${song.id} 无专辑封面，跳过');
         return;
