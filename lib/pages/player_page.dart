@@ -9,11 +9,7 @@ class PlayerPage extends StatefulWidget {
   final Song? initialSong;
   final List<Song>? playlist;
 
-  const PlayerPage({
-    super.key,
-    this.initialSong,
-    this.playlist,
-  });
+  const PlayerPage({super.key, this.initialSong, this.playlist});
 
   @override
   State<PlayerPage> createState() => _PlayerPageState();
@@ -24,10 +20,10 @@ class _PlayerPageState extends State<PlayerPage> {
 
   @override
   void initState() {
-    super.initState();    
+    super.initState();
     // 使用Provider提供的全局音频服务
     _playerService = Provider.of<AudioPlayerService>(context, listen: false);
-    
+
     // 延迟初始化，避免在构建过程中调用setState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializePlayer();
@@ -39,15 +35,15 @@ class _PlayerPageState extends State<PlayerPage> {
     if (widget.playlist != null && widget.initialSong != null) {
       // 找到初始歌曲在播放列表中的索引
       final initialIndex = widget.playlist!.indexWhere(
-        (song) => song.id == widget.initialSong!.id
+        (song) => song.id == widget.initialSong!.id,
       );
-      
+
       // 设置播放列表并指定初始索引
       _playerService.setPlaylist(
         widget.playlist!,
-        initialIndex: initialIndex != -1 ? initialIndex : 0
+        initialIndex: initialIndex != -1 ? initialIndex : 0,
       );
-      
+
       // 播放当前歌曲
       _playerService.play();
     } else if (widget.playlist != null) {
@@ -83,28 +79,26 @@ class _PlayerPageState extends State<PlayerPage> {
         body: Consumer<AudioPlayerService>(
           builder: (context, player, child) {
             if (player.currentSong == null) {
-              return const Center(
-                child: Text('暂无播放歌曲'),
-              );
+              return const Center(child: Text('暂无播放歌曲'));
             }
 
             return Column(
               children: [
                 // 专辑封面区域
                 _buildAlbumCover(player.currentSong!),
-                
+
                 // 歌曲信息
                 _buildSongInfo(player.currentSong!),
-                
+
                 // 播放进度
                 _buildProgressControls(),
-                
+
                 // 播放控制
                 _buildPlaybackControls(),
-                
+
                 // 音量控制
                 _buildVolumeControls(),
-                
+
                 // 播放模式控制
                 _buildModeControls(),
               ],
@@ -120,14 +114,14 @@ class _PlayerPageState extends State<PlayerPage> {
     return Consumer<AudioPlayerService>(
       builder: (context, player, child) {
         final albumArt = player.getAlbumArtForSong(song);
-        
+
         // 异步加载封面
         if (albumArt == null && song.albumId != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             player.loadAlbumArtForSong(song);
           });
         }
-        
+
         return Expanded(
           flex: 3,
           child: Padding(
@@ -147,21 +141,22 @@ class _PlayerPageState extends State<PlayerPage> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  child: albumArt != null
-                      ? Image.memory(
-                          albumArt,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                        )
-                      : Container(
-                          color: Colors.grey[300],
-                          child: const Icon(
-                            Icons.music_note,
-                            size: 100,
-                            color: Colors.grey,
+                  child:
+                      albumArt != null
+                          ? Image.memory(
+                            albumArt,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                          )
+                          : Container(
+                            color: Colors.grey[300],
+                            child: const Icon(
+                              Icons.music_note,
+                              size: 100,
+                              color: Colors.grey,
+                            ),
                           ),
-                        ),
                 ),
               ),
             ),
@@ -179,9 +174,9 @@ class _PlayerPageState extends State<PlayerPage> {
         children: [
           Text(
             song.title,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
@@ -189,9 +184,9 @@ class _PlayerPageState extends State<PlayerPage> {
           const SizedBox(height: 8),
           Text(
             song.artist,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Colors.grey[600],
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
@@ -199,9 +194,9 @@ class _PlayerPageState extends State<PlayerPage> {
           const SizedBox(height: 4),
           Text(
             song.album,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[500],
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: Colors.grey[500]),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
@@ -224,15 +219,22 @@ class _PlayerPageState extends State<PlayerPage> {
                   activeTrackColor: Theme.of(context).colorScheme.primary,
                   inactiveTrackColor: Colors.grey[300],
                   thumbColor: Theme.of(context).colorScheme.primary,
-                  overlayColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8.0),
-                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 20.0),
+                  overlayColor: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.1),
+                  thumbShape: const RoundSliderThumbShape(
+                    enabledThumbRadius: 8.0,
+                  ),
+                  overlayShape: const RoundSliderOverlayShape(
+                    overlayRadius: 20.0,
+                  ),
                 ),
                 child: Slider(
                   value: player.progress,
                   onChanged: (value) {
                     final newPosition = Duration(
-                      milliseconds: (value * player.duration.inMilliseconds).toInt(),
+                      milliseconds:
+                          (value * player.duration.inMilliseconds).toInt(),
                     );
                     player.seek(newPosition);
                   },
@@ -334,7 +336,14 @@ class _PlayerPageState extends State<PlayerPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             IconButton(
-              icon: Icon(player.playModeIcon),
+              icon: Icon(
+                player.playMode == PlayMode.repeatAll
+                    ? Icons.repeat
+                    : player.playMode == PlayMode.repeatOne
+                    ? Icons.repeat_one
+                    : Icons.shuffle,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               onPressed: player.togglePlayMode,
               tooltip: _getPlayModeTooltip(player.playMode),
             ),
@@ -359,23 +368,27 @@ class _PlayerPageState extends State<PlayerPage> {
               itemBuilder: (context, index) {
                 final song = _playerService.playlist[index];
                 final albumArt = _playerService.getAlbumArtForSong(song);
-                
+
                 // 异步加载封面
                 if (albumArt == null && song.albumId != null) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     _playerService.loadAlbumArtForSong(song);
                   });
                 }
-                
+
                 return ListTile(
-                  leading: albumArt != null
-                      ? Image.memory(albumArt, width: 40, height: 40)
-                      : const Icon(Icons.music_note),
+                  leading:
+                      albumArt != null
+                          ? Image.memory(albumArt, width: 40, height: 40)
+                          : const Icon(Icons.music_note),
                   title: Text(song.title),
                   subtitle: Text(song.artist),
                   selected: index == _playerService.currentIndex,
                   onTap: () {
-                    _playerService.setPlaylist(_playerService.playlist, initialIndex: index);
+                    _playerService.setPlaylist(
+                      _playerService.playlist,
+                      initialIndex: index,
+                    );
                     _playerService.play();
                     Navigator.pop(context);
                   },
@@ -400,7 +413,7 @@ class _PlayerPageState extends State<PlayerPage> {
     final hours = duration.inHours;
     final minutes = duration.inMinutes.remainder(60);
     final seconds = duration.inSeconds.remainder(60);
-    
+
     if (hours > 0) {
       return '${twoDigits(hours)}:${twoDigits(minutes)}:${twoDigits(seconds)}';
     } else {
@@ -411,14 +424,14 @@ class _PlayerPageState extends State<PlayerPage> {
   /// 获取播放模式提示
   String _getPlayModeTooltip(PlayMode mode) {
     switch (mode) {
-      case PlayMode.sequence:
-        return '顺序播放';
-      case PlayMode.repeatOne:
-        return '单曲循环';
       case PlayMode.repeatAll:
         return '列表循环';
+      case PlayMode.repeatOne:
+        return '单曲循环';
       case PlayMode.shuffle:
         return '随机播放';
+      default:
+        return '列表循环';
     }
   }
 }

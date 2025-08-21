@@ -52,7 +52,7 @@ class AudioPlayerService extends ChangeNotifier {
   double get volume => _volume;
 
   // 播放模式
-  PlayMode _playMode = PlayMode.sequence;
+  PlayMode _playMode = PlayMode.repeatAll;
   PlayMode get playMode => _playMode;
 
   // 播放进度监听
@@ -72,6 +72,9 @@ class AudioPlayerService extends ChangeNotifier {
   /// 初始化音频播放器
   void _init() {
     _audioPlayer = just_audio.AudioPlayer();
+
+    _audioPlayer.setLoopMode(just_audio.LoopMode.all);
+    _audioPlayer.setShuffleModeEnabled(false);
 
     // 监听播放进度
     _positionSubscription = _audioPlayer.positionStream.listen((position) {
@@ -202,7 +205,7 @@ class AudioPlayerService extends ChangeNotifier {
       if (songIndex != -1) {
         _currentIndex = songIndex;
         _currentSong = song;
-        
+
         // 确保音频播放器处于正确的索引位置
         if (_audioPlayer.currentIndex != songIndex) {
           await _audioPlayer.seek(Duration.zero, index: songIndex);
@@ -341,13 +344,34 @@ class AudioPlayerService extends ChangeNotifier {
     }
   }
 
-  /// 切换播放模式
+  /// 切换播放模式（列表循环 -> 单曲循环 -> 随机播放 -> 列表循环）
   void togglePlayMode() {
-    const modes = PlayMode.values;
+    const modes = [PlayMode.repeatAll, PlayMode.repeatOne, PlayMode.shuffle];
     final currentIndex = modes.indexOf(_playMode);
     _playMode = modes[(currentIndex + 1) % modes.length];
+    // 将状态同时设置到 _audioPlayer
+    _audioPlayer.setLoopMode(
+      _playMode == PlayMode.repeatOne
+          ? just_audio.LoopMode.one
+          : just_audio.LoopMode.all,
+    );
+    _audioPlayer.setShuffleModeEnabled(_playMode == PlayMode.shuffle);
+
     notifyListeners();
   }
+
+  /// 切换随机播放模式
+  void toggleShuffleMode() {
+    if (_playMode == PlayMode.shuffle) {
+      _playMode = PlayMode.sequence;
+    } else {
+      _playMode = PlayMode.shuffle;
+    }
+    notifyListeners();
+  }
+
+  /// 检查是否处于随机播放模式
+  bool get isShuffleMode => _playMode == PlayMode.shuffle;
 
   /// 播放完成时的处理
   void _onPlayComplete() async {
@@ -408,14 +432,14 @@ class AudioPlayerService extends ChangeNotifier {
   /// 获取播放模式图标
   IconData get playModeIcon {
     switch (_playMode) {
-      case PlayMode.sequence:
+      case PlayMode.repeatAll:
         return Icons.repeat;
       case PlayMode.repeatOne:
         return Icons.repeat_one;
-      case PlayMode.repeatAll:
-        return Icons.repeat;
       case PlayMode.shuffle:
         return Icons.shuffle;
+      default:
+        return Icons.repeat;
     }
   }
 
