@@ -44,10 +44,7 @@ class _PlayerPageState extends State<PlayerPage> {
   /// 当前歌曲变化时的回调
   void _onCurrentSongChanged() {
     if (mounted) {
-      if (_lastSongId != _playerService.currentSong?.id) {
-        _lastSongId = _playerService.currentSong?.id;
-        _extractColorsFromCurrentSong();
-      }
+      _extractColorsFromCurrentSong();
     }
   }
 
@@ -75,7 +72,6 @@ class _PlayerPageState extends State<PlayerPage> {
       _playerService.setPlaylist([widget.initialSong!]);
       _playerService.play();
     }
-    _lastSongId = widget.initialSong?.id;
   }
 
   @override
@@ -517,7 +513,7 @@ class _PlayerPageState extends State<PlayerPage> {
     return Consumer<AudioPlayerService>(
       builder: (context, player, child) {
         return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             IconButton(
               icon: Icon(
@@ -532,6 +528,13 @@ class _PlayerPageState extends State<PlayerPage> {
               onPressed: player.togglePlayMode,
               tooltip: _getPlayModeTooltip(player.playMode),
             ),
+            IconButton(
+              icon: const Icon(Icons.playlist_play, color: Colors.white),
+              iconSize: 28,
+              onPressed: _showPlaylistDialog,
+              tooltip: '播放列表',
+            ),
+
           ],
         );
       },
