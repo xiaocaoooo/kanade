@@ -8,6 +8,7 @@ import 'package:kanada_volume/kanada_volume.dart';
 import '../models/song.dart';
 import 'music_service.dart';
 import 'settings_service.dart';
+import 'cover_cache_service.dart';
 
 /// 音频播放状态枚举
 enum PlayerState { stopped, playing, paused, loading, error }
@@ -64,9 +65,6 @@ class AudioPlayerService extends ChangeNotifier {
   StreamSubscription? _playingSubscription;
   StreamSubscription? _currentIndexSubscription;
 
-  // 专辑封面缓存
-  final Map<String, Uint8List?> _albumArtCache = {};
-  
   // 保存状态的防抖计时器
   Timer? _saveStateTimer;
 
@@ -659,20 +657,34 @@ class AudioPlayerService extends ChangeNotifier {
         return file.readAsBytesSync();
       }
     }
-    return _albumArtCache[song.albumId];
+    return CoverCacheManager.instance.getCover(song.albumId ?? '');
   }
 
   /// 异步加载歌曲的专辑封面
   Future<void> loadAlbumArtForSong(Song song) async {
-    if (song.albumId == null || _albumArtCache.containsKey(song.albumId)) {
+    final albumId = song.albumId;
+    if (albumId == null || albumId.isEmpty) {
       return;
     }
 
+    // 如果缓存中已有，不需要加载
+    if (CoverCacheManager.instance.contains(albumId)) {
+      return;
+    }
+
+    // 如果正在加载中，不需要重复加载
+    if (CoverCacheManager.instance.isLoading(albumId)) {
+      return;
+    }
+
+    // 标记为加载中
+    CoverCacheManager.instance.markAsLoading(albumId);
+
     try {
       final albumArt = await MusicService.loadAlbumArtForSong(song);
-      _albumArtCache[song.albumId!] = albumArt;
+      CoverCacheManager.instance.setCover(albumId, albumArt);
 
-      debugPrint('缓存专辑封面: ${song.albumId} (${albumArt?.length ?? 0} bytes)');
+      debugPrint('缓存专辑封面: $albumId (${albumArt?.length ?? 0} bytes)');
 
       // 如果这是当前播放的歌曲，更新封面
       if (_currentSong?.id == song.id) {
@@ -685,7 +697,6 @@ class AudioPlayerService extends ChangeNotifier {
           duration: song.duration,
           path: song.path,
           size: song.size,
-          // albumArt: albumArt ?? song.albumArt,
           albumId: song.albumId,
           dateAdded: song.dateAdded,
           dateModified: song.dateModified,
@@ -701,7 +712,7 @@ class AudioPlayerService extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('加载专辑封面失败: ${song.title} - $e');
-      _albumArtCache[song.albumId!] = null; // 缓存null避免重复尝试
+      CoverCacheManager.instance.setCover(albumId, null); // 缓存null避免重复尝试
     }
   }
 }
