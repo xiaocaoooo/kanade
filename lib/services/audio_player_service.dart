@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:kanada_volume/kanada_volume.dart';
 import '../models/song.dart';
 import 'music_service.dart';
 import 'settings_service.dart';
@@ -79,6 +80,9 @@ class AudioPlayerService extends ChangeNotifier {
 
     _audioPlayer.setLoopMode(just_audio.LoopMode.all);
     _audioPlayer.setShuffleModeEnabled(false);
+    
+    // 初始化时从系统获取当前音量
+    _syncVolumeFromSystem();
 
     // 监听播放进度
     _positionSubscription = _audioPlayer.positionStream.listen((position) {
@@ -348,10 +352,18 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   /// 设置音量
+  /// 使用kanada_volume插件控制系统音量
   Future<void> setVolume(double volume) async {
     volume = volume.clamp(0.0, 1.0);
     try {
-      await _audioPlayer.setVolume(volume);
+      // 获取最大音量值
+      final maxVolume = await KanadaVolumePlugin.getMaxVolume() ?? 15;
+      // 将0.0-1.0的浮点音量转换为0-maxVolume的整数音量
+      final intVolume = (volume * maxVolume).round();
+      
+      // 使用kanada_volume插件设置系统音量
+      await KanadaVolumePlugin.setVolume(intVolume);
+      
       _volume = volume;
       notifyListeners();
       _saveStateDebounced(); // 音量变化时保存状态
@@ -585,6 +597,41 @@ class AudioPlayerService extends ChangeNotifier {
   void _saveStateImmediately() {
     _saveStateTimer?.cancel();
     savePlaylistState();
+  }
+
+  /// 从系统同步当前音量
+  Future<void> _syncVolumeFromSystem() async {
+    try {
+      final currentVolume = await KanadaVolumePlugin.getVolume() ?? 0;
+      final maxVolume = await KanadaVolumePlugin.getMaxVolume() ?? 15;
+      
+      if (maxVolume > 0) {
+        _volume = currentVolume / maxVolume;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('同步系统音量失败: $e');
+    }
+  }
+
+  /// 获取当前系统音量（0-15范围）
+  Future<int?> getSystemVolume() async {
+    try {
+      return await KanadaVolumePlugin.getVolume();
+    } catch (e) {
+      debugPrint('获取系统音量失败: $e');
+      return null;
+    }
+  }
+
+  /// 获取系统最大音量
+  Future<int?> getSystemMaxVolume() async {
+    try {
+      return await KanadaVolumePlugin.getMaxVolume();
+    } catch (e) {
+      debugPrint('获取系统最大音量失败: $e');
+      return null;
+    }
   }
 
   /// 释放资源

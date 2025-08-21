@@ -231,6 +231,13 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "0.4.16"
+  kanada_volume:
+    dependency: "direct main"
+    description:
+      path: kanada_volume
+      relative: true
+    source: path
+    version: "0.0.1"
   kanade_audio_plugin:
     dependency: "direct main"
     description:
