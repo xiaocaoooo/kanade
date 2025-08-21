@@ -337,34 +337,18 @@ class _PlayerPageState extends State<PlayerPage> {
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
               color: Colors.white,
-              shadows: [
-                Shadow(
-                  color: Colors.black.withOpacity(0.5),
-                  offset: const Offset(0, 2),
-                  blurRadius: 4,
-                ),
-              ],
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
           Text(
             song.artist,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: Colors.white.withOpacity(0.9),
-              shadows: [
-                Shadow(
-                  color: Colors.black.withOpacity(0.5),
-                  offset: const Offset(0, 1),
-                  blurRadius: 3,
-                ),
-              ],
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -534,7 +518,6 @@ class _PlayerPageState extends State<PlayerPage> {
               onPressed: _showPlaylistDialog,
               tooltip: '播放列表',
             ),
-
           ],
         );
       },
@@ -543,34 +526,80 @@ class _PlayerPageState extends State<PlayerPage> {
 
   /// 显示播放列表对话框
   void _showPlaylistDialog() {
-    showDialog(
+    showModalBottomSheet(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('播放列表'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: _playerService.playlist.length,
-              itemBuilder: (context, index) {
-                final song = _playerService.playlist[index];
-                final albumArt = _playerService.getAlbumArtForSong(song);
+        final ScrollController scrollController = ScrollController();
+        final GlobalKey firstItemKey = GlobalKey();
 
-                // 异步加载封面
-                if (albumArt == null && song.albumId != null) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    _playerService.loadAlbumArtForSong(song);
-                  });
-                }
+        // 在对话框构建完成后滚动到当前歌曲的下一个位置
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_playerService.playlist.isEmpty) return;
 
-                return ListTile(
+          // 获取第一个项目的高度
+          double itemHeight = 64.0; // 默认值
+          try {
+            final RenderObject? renderObject =
+                firstItemKey.currentContext?.findRenderObject();
+            if (renderObject is RenderBox) {
+              itemHeight = renderObject.size.height;
+            }
+          } catch (e) {
+            debugPrint('获取项目高度失败，使用默认值: $e');
+          }
+          debugPrint('项目高度: $itemHeight');
+
+          // 计算滚动位置：当前歌曲的下一个位置
+          final int targetIndex = _playerService.currentIndex - 1;
+          if (targetIndex < _playerService.playlist.length) {
+            final double scrollOffset = targetIndex * itemHeight;
+
+            // 确保滚动位置在有效范围内
+            final double maxScrollExtent =
+                scrollController.position.maxScrollExtent;
+            final double finalOffset = scrollOffset.clamp(0.0, maxScrollExtent);
+
+            scrollController.jumpTo(finalOffset);
+          }
+        });
+
+        return SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            controller: scrollController,
+            shrinkWrap: true,
+            itemCount: _playerService.playlist.length,
+            itemBuilder: (context, index) {
+              final song = _playerService.playlist[index];
+              final albumArt = _playerService.getAlbumArtForSong(song);
+
+              // 异步加载封面
+              if (albumArt == null && song.albumId != null) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _playerService.loadAlbumArtForSong(song);
+                });
+              }
+
+              final Widget listItem = Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: ListTile(
                   leading:
                       albumArt != null
-                          ? Image.memory(albumArt, width: 40, height: 40)
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(8.0),
+                              child: Image.memory(albumArt, width: 40, height: 40, fit: BoxFit.cover),
+                            )
                           : const Icon(Icons.music_note),
-                  title: Text(song.title),
-                  subtitle: Text(song.artist),
+                  title: Text(
+                    song.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    song.artist,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   selected: index == _playerService.currentIndex,
                   onTap: () {
                     _playerService.setPlaylist(
@@ -580,16 +609,17 @@ class _PlayerPageState extends State<PlayerPage> {
                     _playerService.play();
                     Navigator.pop(context);
                   },
-                );
-              },
-            ),
+                ),
+              );
+
+              // 为第一项添加key以便测量高度
+              if (index == 0) {
+                return KeyedSubtree(key: firstItemKey, child: listItem);
+              }
+
+              return listItem;
+            },
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('关闭'),
-            ),
-          ],
         );
       },
     );
