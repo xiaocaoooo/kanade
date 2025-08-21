@@ -18,11 +18,18 @@ void main() async {
     androidNotificationOngoing: true,
   );
   await SettingsService.init();
-  runApp(const KanadeApp());
+  
+  // 创建音频服务实例并恢复播放状态
+  final audioService = AudioPlayerService();
+  await audioService.restorePlaylistState();
+  
+  runApp(KanadeApp(audioService: audioService));
 }
 
 class KanadeApp extends StatelessWidget {
-  const KanadeApp({super.key});
+  final AudioPlayerService audioService;
+  
+  const KanadeApp({super.key, required this.audioService});
 
   @override
   Widget build(BuildContext context) {
@@ -45,8 +52,8 @@ class KanadeApp extends StatelessWidget {
           );
         }
 
-        return ChangeNotifierProvider(
-          create: (context) => AudioPlayerService(),
+        return ChangeNotifierProvider.value(
+          value: audioService,
           child: MaterialApp(
             title: 'Kanade',
             theme: ThemeData(colorScheme: lightColorScheme, useMaterial3: true),

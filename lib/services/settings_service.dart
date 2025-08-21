@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 /// 设置服务类
 /// 管理应用的各种用户设置，包括艺术家分隔符配置
@@ -7,6 +8,7 @@ class SettingsService {
   static const String _artistSeparatorsKey = 'artist_separators';
   static const String _artistWhitelistKey = 'artist_whitelist';
   static const String _folderWhitelistKey = 'folder_whitelist';
+  static const String _playlistStateKey = 'playlist_state';
 
   /// 默认艺术家分隔符列表，按优先级排序
   static const List<String> _defaultSeparators = [
@@ -198,60 +200,57 @@ class SettingsService {
         final result = <String>[];
         
         // 遍历分割后的部分，检查是否属于白名单
-        for (int i = 0; i < parts.length; i++) {
-          final currentPart = parts[i].trim();
-          if (currentPart.isEmpty) continue;
-          
-          // 检查当前部分是否属于白名单
-          bool isInWhitelist = false;
-          String matchedWhitelistArtist = currentPart;
-          
-          for (final whiteArtist in whitelist) {
-            if (currentPart.toLowerCase() == whiteArtist.toLowerCase()) {
-              isInWhitelist = true;
-              matchedWhitelistArtist = whiteArtist;
-              break;
-            }
-          }
-          
-          if (isInWhitelist) {
-            result.add(matchedWhitelistArtist);
-            continue;
-          }
-          
-          // 检查从当前部分开始的连续部分是否组成白名单艺术家
-          String combinedPart = currentPart;
-          for (int j = i + 1; j < parts.length; j++) {
-            combinedPart += separator + parts[j].trim();
-            bool combinedInWhitelist = false;
-            String matchedCombinedArtist = combinedPart;
-            
+        for (var part in parts) {
+          final trimmedPart = part.trim();
+          if (trimmedPart.isNotEmpty) {
+            bool isInWhitelist = false;
             for (final whiteArtist in whitelist) {
-              if (combinedPart.toLowerCase() == whiteArtist.toLowerCase()) {
-                combinedInWhitelist = true;
-                matchedCombinedArtist = whiteArtist;
+              if (whiteArtist.toLowerCase() == trimmedPart.toLowerCase()) {
+                result.add(whiteArtist);
+                isInWhitelist = true;
                 break;
               }
             }
-            
-            if (combinedInWhitelist) {
-              result.add(matchedCombinedArtist);
-              i = j; // 跳过已处理的部分
-              isInWhitelist = true;
-              break;
+            if (!isInWhitelist) {
+              result.add(trimmedPart);
             }
-          }
-          
-          if (!isInWhitelist) {
-            result.add(currentPart);
           }
         }
         
-        return result.where((artist) => artist.isNotEmpty).toList();
+        return result.isNotEmpty ? result : ['未知艺术家'];
       }
     }
-
-    // 如果没有找到任何分隔符，返回原字符串
+    
+    // 没有找到分隔符，返回原字符串
     return [trimmedArtist];
+  }
+
+  /// 保存播放状态
+  static Future<void> savePlaylistState(Map<String, dynamic> state) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_playlistStateKey, jsonEncode(state));
+  }
+
+  /// 加载播放状态
+  static Future<Map<String, dynamic>?> loadPlaylistState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stateString = prefs.getString(_playlistStateKey);
+    
+    if (stateString == null || stateString.isEmpty) {
+      return null;
+    }
+
+    try {
+      return Map<String, dynamic>.from(jsonDecode(stateString));
+    } catch (e) {
+      debugPrint('加载播放状态失败: $e');
+      return null;
+    }
+  }
+
+  /// 清除播放状态
+  static Future<void> clearPlaylistState() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_playlistStateKey);
   }
 }

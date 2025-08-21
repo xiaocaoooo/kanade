@@ -6,6 +6,7 @@ import 'package:just_audio/just_audio.dart' as just_audio;
 import 'package:just_audio_background/just_audio_background.dart';
 import '../models/song.dart';
 import 'music_service.dart';
+import 'settings_service.dart';
 
 /// 音频播放状态枚举
 enum PlayerState { stopped, playing, paused, loading, error }
@@ -64,6 +65,9 @@ class AudioPlayerService extends ChangeNotifier {
 
   // 专辑封面缓存
   final Map<String, Uint8List?> _albumArtCache = {};
+  
+  // 保存状态的防抖计时器
+  Timer? _saveStateTimer;
 
   AudioPlayerService() {
     _init();
@@ -113,6 +117,9 @@ class AudioPlayerService extends ChangeNotifier {
         }
       }
       notifyListeners();
+      
+      // 播放状态变化时保存状态
+      _saveStateDebounced();
     });
 
     // 监听播放/暂停状态
@@ -123,6 +130,9 @@ class AudioPlayerService extends ChangeNotifier {
         _playerState = PlayerState.paused;
       }
       notifyListeners();
+      
+      // 播放/暂停状态变化时保存状态
+      _saveStateDebounced();
     });
 
     // 监听当前播放索引变化
@@ -131,6 +141,9 @@ class AudioPlayerService extends ChangeNotifier {
         _currentIndex = index;
         _currentSong = _playlist[index];
         notifyListeners();
+        
+        // 播放索引变化时保存状态
+        _saveStateDebounced();
       }
     });
   }
@@ -152,6 +165,7 @@ class AudioPlayerService extends ChangeNotifier {
     try {
       await _setupBackgroundPlaylist(initialIndex: _currentIndex);
       notifyListeners();
+      _saveStateImmediately(); // 播放列表变化时立即保存
     } catch (e) {
       debugPrint('设置播放列表失败: $e');
       _playerState = PlayerState.error;
@@ -327,6 +341,7 @@ class AudioPlayerService extends ChangeNotifier {
       await _audioPlayer.seek(position);
       _position = position;
       notifyListeners();
+      _saveStateDebounced(); // 播放进度变化时保存状态
     } catch (e) {
       debugPrint('调整进度失败: $e');
     }
@@ -339,6 +354,7 @@ class AudioPlayerService extends ChangeNotifier {
       await _audioPlayer.setVolume(volume);
       _volume = volume;
       notifyListeners();
+      _saveStateDebounced(); // 音量变化时保存状态
     } catch (e) {
       debugPrint('设置音量失败: $e');
     }
@@ -358,6 +374,7 @@ class AudioPlayerService extends ChangeNotifier {
     _audioPlayer.setShuffleModeEnabled(_playMode == PlayMode.shuffle);
 
     notifyListeners();
+    _saveStateImmediately(); // 播放模式变化立即保存
   }
 
   /// 切换随机播放模式
@@ -443,9 +460,140 @@ class AudioPlayerService extends ChangeNotifier {
     }
   }
 
+  /// 检查是否有保存的播放状态
+  static Future<bool> hasSavedPlaylistState() async {
+    final state = await SettingsService.loadPlaylistState();
+    return state != null && state['playlist'] != null && (state['playlist'] as List).isNotEmpty;
+  }
+
+  /// 保存当前播放状态
+  Future<void> savePlaylistState() async {
+    if (_playlist.isEmpty || _currentSong == null) {
+      // 如果播放列表为空，清除保存的状态
+      await SettingsService.clearPlaylistState();
+      return;
+    }
+
+    try {
+      // 获取当前播放进度
+      final currentPosition = _position.inMilliseconds;
+      
+      // 构建播放状态数据
+      final state = {
+        'playlist': _playlist.map((song) => song.toJson()).toList(),
+        'currentIndex': _currentIndex,
+        'playMode': _playMode.toString().split('.').last,
+        'position': currentPosition,
+        'isPlaying': isPlaying,
+        'volume': _volume,
+      };
+
+      await SettingsService.savePlaylistState(state);
+      debugPrint('播放状态已保存: ${_playlist.length}首歌曲，当前索引: $_currentIndex');
+    } catch (e) {
+      debugPrint('保存播放状态失败: $e');
+    }
+  }
+
+  /// 恢复播放状态
+  Future<bool> restorePlaylistState() async {
+    try {
+      final state = await SettingsService.loadPlaylistState();
+      if (state == null) {
+        debugPrint('没有找到保存的播放状态');
+        return false;
+      }
+
+      // 解析播放列表
+      final playlistData = List<Map<String, dynamic>>.from(state['playlist'] as List);
+      final restoredPlaylist = playlistData.map((data) => Song.fromJson(data)).toList();
+
+      if (restoredPlaylist.isEmpty) {
+        debugPrint('恢复的播放列表为空');
+        return false;
+      }
+
+      // 解析其他状态
+      final currentIndex = (state['currentIndex'] as int).clamp(0, restoredPlaylist.length - 1);
+      final playModeStr = state['playMode'] as String;
+      final position = state['position'] as int;
+      final isPlaying = state['isPlaying'] as bool;
+      final volume = (state['volume'] as num).toDouble();
+
+      // 设置播放模式
+      switch (playModeStr) {
+        case 'sequence':
+          _playMode = PlayMode.sequence;
+          break;
+        case 'repeatOne':
+          _playMode = PlayMode.repeatOne;
+          break;
+        case 'repeatAll':
+          _playMode = PlayMode.repeatAll;
+          break;
+        case 'shuffle':
+          _playMode = PlayMode.shuffle;
+          break;
+        default:
+          _playMode = PlayMode.repeatAll;
+      }
+
+      // 设置播放列表和状态
+      _playlist = restoredPlaylist;
+      _currentIndex = currentIndex;
+      _currentSong = _playlist[_currentIndex];
+      _volume = volume.clamp(0.0, 1.0);
+
+      // 设置音频播放器
+      await _setupBackgroundPlaylist(initialIndex: currentIndex);
+      await _audioPlayer.setVolume(_volume);
+      
+      // 设置播放模式
+      _audioPlayer.setLoopMode(
+        _playMode == PlayMode.repeatOne ? just_audio.LoopMode.one : just_audio.LoopMode.all,
+      );
+      _audioPlayer.setShuffleModeEnabled(_playMode == PlayMode.shuffle);
+
+      // 设置播放进度
+      if (position > 0) {
+        await _audioPlayer.seek(Duration(milliseconds: position));
+      }
+
+      // 如果需要继续播放
+      if (isPlaying) {
+        await _audioPlayer.play();
+      }
+
+      notifyListeners();
+      debugPrint('播放状态已恢复: ${_playlist.length}首歌曲，当前索引: $_currentIndex');
+      return true;
+    } catch (e) {
+      debugPrint('恢复播放状态失败: $e');
+      return false;
+    }
+  }
+
+  /// 防抖保存播放状态
+  void _saveStateDebounced() {
+    _saveStateTimer?.cancel();
+    _saveStateTimer = Timer(const Duration(seconds: 1), () {
+      savePlaylistState();
+    });
+  }
+
+  /// 立即保存播放状态（不防抖）
+  void _saveStateImmediately() {
+    _saveStateTimer?.cancel();
+    savePlaylistState();
+  }
+
   /// 释放资源
   @override
   void dispose() {
+    // 在释放资源前保存播放状态
+    _saveStateImmediately();
+    
+    _saveStateTimer?.cancel();
     _positionSubscription?.cancel();
     _durationSubscription?.cancel();
     _playerStateSubscription?.cancel();

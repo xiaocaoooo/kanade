@@ -121,6 +121,38 @@ class Song {
     );
   }
 
+  /// 将Song对象转换为JSON格式
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'artist': artist,
+      'album': album,
+      'duration': duration,
+      'path': path,
+      'size': size,
+      'albumId': albumId,
+      'dateAdded': dateAdded.millisecondsSinceEpoch,
+      'dateModified': dateModified.millisecondsSinceEpoch,
+    };
+  }
+
+  /// 从JSON格式创建Song对象
+  factory Song.fromJson(Map<String, dynamic> json) {
+    return Song(
+      id: json['id']?.toString() ?? '',
+      title: json['title'] ?? '未知歌曲',
+      artist: json['artist'] ?? '未知艺术家',
+      album: json['album'] ?? '未知专辑',
+      duration: (json['duration'] as num?)?.toInt() ?? 0,
+      path: json['path'] ?? '',
+      size: (json['size'] as num?)?.toInt() ?? 0,
+      albumId: json['albumId']?.toString(),
+      dateAdded: DateTime.fromMillisecondsSinceEpoch(json['dateAdded'] ?? 0),
+      dateModified: DateTime.fromMillisecondsSinceEpoch(json['dateModified'] ?? 0),
+    );
+  }
+
   @override
   String toString() {
     return 'Song(id: $id, title: $title, artist: $artist, album: $album, duration: $duration, path: $path, size: $size, albumArtUri: $albumArtUri, albumId: $albumId, dateAdded: $dateAdded, dateModified: $dateModified)';
