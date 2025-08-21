@@ -21,7 +21,7 @@ class AudioPlayerService extends ChangeNotifier {
   Song? _currentSong;
   plugin.PlayerState _playerState = plugin.PlayerState.stopped;
   Duration _position = Duration.zero;
-  Duration _duration = Duration.zero;
+  final Duration _duration = Duration.zero;
   double _volume = 1.0;
   plugin.PlayMode _playMode = plugin.PlayMode.sequence;
 

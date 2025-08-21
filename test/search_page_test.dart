@@ -55,9 +55,6 @@ class MockAudioPlayerService extends AudioPlayerService {
   Future<void> pause() async {}
 
   @override
-  Future<void> resume() async {}
-
-  @override
   Future<void> stop() async {}
 
   @override
@@ -75,7 +72,8 @@ class MockAudioPlayerService extends AudioPlayerService {
   @override
   Future<void> setVolume(double volume) async {}
 
-  // togglePlayMode方法在父类中返回void，不需要override
+  @override
+  Future<void> togglePlayMode() async {}
 
   @override
   Future<void> setPlaylist(List<Song> songs, {int initialIndex = 0}) async {}

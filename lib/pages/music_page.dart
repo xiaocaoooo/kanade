@@ -1,4 +1,3 @@
-import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:kanade/pages/folder_page.dart';
 import 'package:kanade/pages/artist_page.dart';
@@ -20,10 +19,10 @@ class MusicPage extends StatefulWidget {
 class _MusicPageState extends State<MusicPage> {
   /// 音乐统计信息
   late Future<MusicStats> _musicStats;
-  
+
   /// 加载状态
   bool _isLoading = true;
-  
+
   /// 错误信息
   String? _errorMessage;
 
@@ -57,12 +56,12 @@ class _MusicPageState extends State<MusicPage> {
   /// 计算音乐统计信息
   Future<MusicStats> _calculateMusicStats() async {
     final songs = await MusicService.getAllSongsWithoutArt();
-    
+
     // 按不同维度分类统计
     final folderGroups = _groupByFolder(songs);
     final artistGroups = _groupByArtist(songs);
     final albumGroups = _groupByAlbum(songs);
-    
+
     return MusicStats(
       totalSongs: songs.length,
       totalArtists: artistGroups.length,
@@ -126,7 +125,7 @@ class _MusicPageState extends State<MusicPage> {
     final hours = seconds ~/ 3600;
     final minutes = (seconds % 3600) ~/ 60;
     final secs = seconds % 60;
-    
+
     if (hours > 0) {
       return '${hours}h ${minutes}m ${secs}s';
     } else if (minutes > 0) {
@@ -139,9 +138,7 @@ class _MusicPageState extends State<MusicPage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_errorMessage != null) {
@@ -190,7 +187,10 @@ class _MusicPageState extends State<MusicPage> {
                 children: [
                   const Icon(Icons.error_outline, size: 64, color: Colors.grey),
                   const SizedBox(height: 16),
-                  Text('错误: ${snapshot.error}', style: const TextStyle(color: Colors.grey)),
+                  Text(
+                    '错误: ${snapshot.error}',
+                    style: const TextStyle(color: Colors.grey),
+                  ),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: _loadMusicStats,
@@ -258,7 +258,11 @@ class _MusicPageState extends State<MusicPage> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildStatItem(Icons.folder, stats.totalFolders, '文件夹'),
-                _buildStatItem(Icons.timer, _formatDuration(stats.totalDuration~/1000), '总时长'),
+                _buildStatItem(
+                  Icons.timer,
+                  _formatDuration(stats.totalDuration ~/ 1000),
+                  '总时长',
+                ),
               ],
             ),
           ],
@@ -277,10 +281,7 @@ class _MusicPageState extends State<MusicPage> {
           value.toString(),
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
-        ),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ],
     );
   }
@@ -329,7 +330,8 @@ class _MusicPageState extends State<MusicPage> {
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
       childAspectRatio: 1.5,
-      children: categories.map((category) => _buildCategoryCard(category)).toList(),
+      children:
+          categories.map((category) => _buildCategoryCard(category)).toList(),
     );
   }
 
@@ -364,10 +366,7 @@ class _MusicPageState extends State<MusicPage> {
               ),
               Text(
                 '${category.count} ${category.count == 1 ? '首' : '首'}', // 简化文本
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey,
-                ),
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
                 maxLines: 1,
               ),
               Text(
@@ -391,9 +390,7 @@ class _MusicPageState extends State<MusicPage> {
   void _navigateToFolderPage(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const FolderPage(),
-      ),
+      MaterialPageRoute(builder: (context) => const FolderPage()),
     );
   }
 
@@ -401,9 +398,7 @@ class _MusicPageState extends State<MusicPage> {
   void _navigateToArtistPage(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const ArtistPage(),
-      ),
+      MaterialPageRoute(builder: (context) => const ArtistPage()),
     );
   }
 
@@ -411,9 +406,7 @@ class _MusicPageState extends State<MusicPage> {
   void _navigateToAlbumPage(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const AlbumPage(),
-      ),
+      MaterialPageRoute(builder: (context) => const AlbumPage()),
     );
   }
 
@@ -421,9 +414,7 @@ class _MusicPageState extends State<MusicPage> {
   void _navigateToSongsPage(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const SongsPage(),
-      ),
+      MaterialPageRoute(builder: (context) => const SongsPage()),
     );
   }
 }

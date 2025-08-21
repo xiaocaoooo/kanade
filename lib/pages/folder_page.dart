@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../services/music_service.dart';
 import '../models/song.dart';
-import '../services/audio_player_service.dart';
 import '../widgets/song_item.dart';
 
 /// 文件夹页面

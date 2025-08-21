@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import '../models/song.dart';
 import '../services/music_service.dart';
 import '../utils/permission_helper.dart';
 import '../widgets/song_item.dart';
-import 'player_page.dart';
 
 /// 歌曲列表页面
 /// 展示设备中所有本地歌曲的完整信息

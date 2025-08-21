@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/song.dart';
 import '../services/audio_player_service.dart';
-import '../services/media_notification_service.dart';
 
 /// 音乐播放器页面
 /// 提供完整的播放控制界面，包括播放/暂停、进度条、音量控制等
@@ -11,10 +10,10 @@ class PlayerPage extends StatefulWidget {
   final List<Song>? playlist;
 
   const PlayerPage({
-    Key? key,
+    super.key,
     this.initialSong,
     this.playlist,
-  }) : super(key: key);
+  });
 
   @override
   State<PlayerPage> createState() => _PlayerPageState();
@@ -140,7 +139,7 @@ class _PlayerPageState extends State<PlayerPage> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
+                      color: Colors.black.withValues(alpha: 0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -225,7 +224,7 @@ class _PlayerPageState extends State<PlayerPage> {
                   activeTrackColor: Theme.of(context).colorScheme.primary,
                   inactiveTrackColor: Colors.grey[300],
                   thumbColor: Theme.of(context).colorScheme.primary,
-                  overlayColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  overlayColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                   thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8.0),
                   overlayShape: const RoundSliderOverlayShape(overlayRadius: 20.0),
                 ),

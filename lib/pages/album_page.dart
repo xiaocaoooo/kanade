@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../services/music_service.dart';
-import '../services/audio_player_service.dart';
 import '../models/song.dart';
 import '../widgets/song_item.dart';
 
@@ -125,8 +123,8 @@ class _AlbumPageState extends State<AlbumPage> {
                     child: Container(
                       decoration: BoxDecoration(
                         color: Theme.of(
-                          context,
-                        ).colorScheme.primary.withOpacity(0.3),
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.3),
                         borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(12),
                         ),
