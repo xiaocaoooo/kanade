@@ -138,7 +138,7 @@ class _PlayerPageState extends State<PlayerPage> {
           colors.add(palette.lightVibrantColor!.color);
         }
 
-        extractedColors = colors.take(5).toList();
+        extractedColors = colors.toList();
       } else if (currentSong.albumId != null) {
         // 异步加载封面并提取颜色
         await _playerService.loadAlbumArtForSong(currentSong);
@@ -158,17 +158,8 @@ class _PlayerPageState extends State<PlayerPage> {
           }
           if (palette.mutedColor != null) colors.add(palette.mutedColor!.color);
 
-          if (colors.length < 3) {
-            colors.addAll([Colors.deepPurple, Colors.purple, Colors.indigo]);
-          }
-
-          extractedColors = colors.take(5).toList();
+          extractedColors = colors.toList();
         }
-      }
-
-      // 如果没有提取到颜色，使用默认颜色
-      if (extractedColors.isEmpty) {
-        extractedColors = [Colors.deepPurple, Colors.purple, Colors.indigo];
       }
 
       // 缓存提取的颜色
@@ -294,34 +285,42 @@ class _PlayerPageState extends State<PlayerPage> {
             child: Container(
               width: screenWidth * .8,
               height: screenWidth * .8,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
+              child: Center(
+                child: AnimatedContainer(
+                  duration: Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  width: screenWidth * (player.isPlaying ? 0.8 : 0.7),
+                  height: screenWidth * (player.isPlaying ? 0.8 : 0.7),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child:
-                    albumArt != null
-                        ? Image.memory(
-                          albumArt,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                        )
-                        : Container(
-                          color: Colors.grey[300],
-                          child: const Icon(
-                            Icons.music_note,
-                            size: 100,
-                            color: Colors.grey,
-                          ),
-                        ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child:
+                        albumArt != null
+                            ? Image.memory(
+                              albumArt,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                            )
+                            : Container(
+                              color: Colors.grey[300],
+                              child: const Icon(
+                                Icons.music_note,
+                                size: 100,
+                                color: Colors.grey,
+                              ),
+                            ),
+                  ),
+                ),
               ),
             ),
           ),
@@ -340,7 +339,7 @@ class _PlayerPageState extends State<PlayerPage> {
             song.title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: Colors.white.withOpacity(0.8),
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -349,7 +348,7 @@ class _PlayerPageState extends State<PlayerPage> {
           Text(
             song.artist,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withOpacity(0.6),
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -540,9 +539,7 @@ class _PlayerPageState extends State<PlayerPage> {
     if (currentSong != null) {
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => LyricsPage(song: currentSong),
-        ),
+        MaterialPageRoute(builder: (context) => LyricsPage(song: currentSong)),
       );
     }
   }
@@ -609,9 +606,14 @@ class _PlayerPageState extends State<PlayerPage> {
                   leading:
                       albumArt != null
                           ? ClipRRect(
-                              borderRadius: BorderRadius.circular(8.0),
-                              child: Image.memory(albumArt, width: 40, height: 40, fit: BoxFit.cover),
-                            )
+                            borderRadius: BorderRadius.circular(8.0),
+                            child: Image.memory(
+                              albumArt,
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                            ),
+                          )
                           : const Icon(Icons.music_note),
                   title: Text(
                     song.title,

@@ -65,7 +65,7 @@ class LyricsService {
     final rawLyrics = <Duration, List<String>>{};
     final wordTimingsMap = <Duration, List<WordTiming>?>{};
     final endTimeMap = <Duration, Duration>{};
-    
+
     // 元数据
     String title = '';
     String artist = '';
@@ -107,19 +107,21 @@ class LyricsService {
         );
 
         var text = match.group(3) ?? '';
-        
+
         // 检查是否有逐字歌词和独立的结束时间
         List<WordTiming>? wordTimings;
         String cleanText;
         Duration? explicitEndTime;
-        
+
         if (text.contains('<')) {
           // 检查是否有独立的结束时间标签
-          final allTags = RegExp(r'<(\d{2}):(\d{2}\.\d{2,3})>([^<]*)').allMatches(text);
+          final allTags = RegExp(
+            r'<(\d{2}):(\d{2}\.\d{2,3})>([^<]*)',
+          ).allMatches(text);
           if (allTags.isNotEmpty) {
             final lastTag = allTags.last;
             final content = lastTag.group(3)?.trim() ?? '';
-            
+
             if (content.isEmpty) {
               // 最后一个标签是独立的结束时间标签
               final endMinutes = int.parse(lastTag.group(1)!);
@@ -128,12 +130,12 @@ class LyricsService {
                 minutes: endMinutes,
                 milliseconds: (endSeconds * 1000).toInt(),
               );
-              
+
               // 移除最后一个结束时间标签
               text = text.substring(0, lastTag.start);
             }
           }
-          
+
           wordTimings = _parseWordTimings(text);
           cleanText = _removeWordTimingTags(text);
         } else {
@@ -146,7 +148,7 @@ class LyricsService {
           wordTimingsMap[time] = wordTimings;
         }
         rawLyrics[time]!.add(cleanText);
-        
+
         if (explicitEndTime != null) {
           endTimeMap[time] = explicitEndTime;
         }
@@ -161,10 +163,10 @@ class LyricsService {
       final time = sortedTimes[i];
       final texts = rawLyrics[time]!;
       final wordTimings = wordTimingsMap[time];
-      
+
       String text;
       String? translation;
-      
+
       if (texts.length >= 2) {
         // 如果有多个文本，第一行为主歌词，第二行为翻译
         text = texts[0];
@@ -182,18 +184,21 @@ class LyricsService {
         endTime = sortedTimes[i + 1];
       } else {
         // 对于最后一行，使用逐字歌词结束时间或默认值
-        endTime = wordTimings != null && wordTimings.isNotEmpty
-            ? wordTimings.last.startTime + wordTimings.last.duration
-            : time + const Duration(seconds: 5);
+        endTime =
+            wordTimings != null && wordTimings.isNotEmpty
+                ? wordTimings.last.startTime + wordTimings.last.duration
+                : time + const Duration(seconds: 5);
       }
 
-      lyrics.add(LyricLine(
-        startTime: time,
-        endTime: endTime,
-        text: text,
-        translation: translation,
-        wordTimings: wordTimings,
-      ));
+      lyrics.add(
+        LyricLine(
+          startTime: time,
+          endTime: endTime,
+          text: text,
+          translation: translation,
+          wordTimings: wordTimings,
+        ),
+      );
     }
 
     return lyrics;
@@ -203,19 +208,20 @@ class LyricsService {
   static List<WordTiming>? _parseWordTimings(String text) {
     final regex = RegExp(r'<(\d{2}):(\d{2}\.\d{2,3})>([^<]*)');
     final matches = regex.allMatches(text);
-    
+
     if (matches.isEmpty) return null;
-    
+
     final wordTimings = <WordTiming>[];
-    
+
     // 过滤掉空内容的标签，只保留有实际歌词的标签
-    final validMatches = matches.where((match) {
-      final word = match.group(3)?.trim() ?? '';
-      return word.isNotEmpty;
-    }).toList();
-    
+    final validMatches =
+        matches.where((match) {
+          final word = match.group(3)?.trim() ?? '';
+          return word.isNotEmpty;
+        }).toList();
+
     if (validMatches.isEmpty) return null;
-    
+
     for (var i = 0; i < validMatches.length; i++) {
       final match = validMatches[i];
       final minutes = int.parse(match.group(1)!);
@@ -230,22 +236,18 @@ class LyricsService {
       // 根据测试数据，每个单词固定持续20毫秒
       Duration duration = const Duration(milliseconds: 20);
 
-      wordTimings.add(WordTiming(
-        startTime: startTime,
-        duration: duration,
-        word: word,
-      ));
+      wordTimings.add(
+        WordTiming(startTime: startTime, duration: duration, word: word),
+      );
     }
-    
+
     return wordTimings;
   }
 
   /// 移除逐字时间标签，获取纯文本
   static String _removeWordTimingTags(String text) {
     // 移除所有时间标签，包括独立的结束时间标签
-    return text
-        .replaceAll(RegExp(r'<\d{2}:\d{2}\.\d{2,3}>'), '')
-        .trim();
+    return text.replaceAll(RegExp(r'<\d{2}:\d{2}\.\d{2,3}>'), '').trim();
   }
 
   /// 从音频文件元数据读取歌词
@@ -256,11 +258,11 @@ class LyricsService {
 
       final dynamic meta = readAllMetadata(file, getImage: false);
       final lyricText = meta.lyric;
-      
+
       if (lyricText != null && lyricText.isNotEmpty) {
         return parseLrcContent(lyricText);
       }
-      
+
       return null;
     } catch (e) {
       print('读取音频文件元数据失败: $e');
@@ -273,7 +275,7 @@ class LyricsService {
     final directory = Directory(song.path).parent;
     final fileName = song.path.split(Platform.pathSeparator).last;
     final baseName = fileName.substring(0, fileName.lastIndexOf('.'));
-    
+
     // 可能的LRC文件名
     final possibleNames = [
       '$baseName.lrc',
@@ -301,11 +303,14 @@ class LyricsService {
   }
 
   /// 根据当前播放时间获取当前应该显示的歌词行
-  static LyricLine? getCurrentLyric(List<LyricLine> lyrics, Duration currentTime) {
+  static LyricLine? getCurrentLyric(
+    List<LyricLine> lyrics,
+    Duration currentTime,
+  ) {
     if (lyrics.isEmpty) return null;
 
     for (int i = lyrics.length - 1; i >= 0; i--) {
-      if (currentTime >= lyrics[i].startTime && 
+      if (currentTime >= lyrics[i].startTime &&
           currentTime < lyrics[i].endTime) {
         return lyrics[i];
       }
@@ -315,16 +320,22 @@ class LyricsService {
   }
 
   /// 获取当前歌词行的索引
-  static int getCurrentLyricIndex(List<LyricLine> lyrics, Duration currentTime) {
+  static int getCurrentLyricIndex(
+    List<LyricLine> lyrics,
+    Duration currentTime,
+  ) {
     if (lyrics.isEmpty) return -1;
 
+    int index = 0;
+
     for (int i = 0; i < lyrics.length; i++) {
-      if (currentTime >= lyrics[i].startTime && 
-          currentTime < lyrics[i].endTime) {
-        return i;
+      if (currentTime >= lyrics[i].startTime) {
+        index = i;
+      } else {
+        break;
       }
     }
 
-    return 0;
+    return index;
   }
 }
