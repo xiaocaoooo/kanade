@@ -10,6 +10,7 @@ import '../services/audio_player_service.dart';
 // import '../services/lyrics_service.dart';
 import '../services/color_cache_service.dart';
 import '../widgets/color_blender.dart';
+import 'dart:ui'; // 添加导入以使用ImageFilter
 
 /// 歌词显示页面
 /// 支持逐行歌词和逐字歌词显示
@@ -135,7 +136,7 @@ class _LyricsPageState extends State<LyricsPage> {
   /// 通过GlobalKey获取每行歌词的实际渲染高度，然后构建前缀和数组
   /// 这种方法比TextPainter估算更准确，因为它使用实际渲染结果
   void _calculateLyricsLineHeightsWithGlobalKey() {
-    if (_lyrics.isEmpty || !mounted || !_lyricBuilded.every((e)=>e)) return;
+    if (_lyrics.isEmpty || !mounted || !_lyricBuilded.every((e) => e)) return;
 
     final List<double> lineHeights = [];
     final List<double> prefixSum = [0.0]; // 前缀和数组，第一个元素为0
@@ -210,7 +211,11 @@ class _LyricsPageState extends State<LyricsPage> {
       final translationPainter = TextPainter(
         text: TextSpan(
           text: lyric.translation,
-          style: TextStyle(fontSize: 14, color: LyricsColors.secondaryColor, height: 1.3),
+          style: TextStyle(
+            fontSize: 14,
+            color: LyricsColors.secondaryColor,
+            height: 1.3,
+          ),
         ),
         maxLines: null,
         textDirection: TextDirection.ltr,
@@ -404,16 +409,26 @@ class _LyricsPageState extends State<LyricsPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.lyrics_outlined, size: 64, color: LyricsColors.secondaryColor),
+            Icon(
+              Icons.lyrics_outlined,
+              size: 64,
+              color: LyricsColors.secondaryColor,
+            ),
             const SizedBox(height: 16),
             Text(
               '暂无歌词',
-              style: TextStyle(color: LyricsColors.secondaryColor, fontSize: 18),
+              style: TextStyle(
+                color: LyricsColors.secondaryColor,
+                fontSize: 18,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               '请确保歌曲目录下有对应的.lrc文件',
-              style: TextStyle(color: LyricsColors.secondaryColor, fontSize: 14),
+              style: TextStyle(
+                color: LyricsColors.secondaryColor,
+                fontSize: 14,
+              ),
             ),
           ],
         ),
@@ -424,7 +439,7 @@ class _LyricsPageState extends State<LyricsPage> {
       children: List.generate(_lyrics.length, (index) {
         final lyric = _lyrics[index];
         final isCurrent = index == _currentLyricIndex;
-        final top = _getCumulativeHeight(index - 1) - _offset + 48;
+        final top = _getCumulativeHeight(index - 1) - _offset + 64;
         final height = _getCurrentLineHeight(index);
         final bottom = top + height;
         if (bottom < 0 || top > _screenHeight) {
@@ -437,7 +452,7 @@ class _LyricsPageState extends State<LyricsPage> {
           ),
         );
         _lyricBuilded[index] = true;
-        
+
         return AnimatedPositioned(
           key: _lyricLineKeys[index],
           duration: duration,
@@ -453,6 +468,27 @@ class _LyricsPageState extends State<LyricsPage> {
 
   /// 构建单行歌词
   Widget _buildLyricLine(LyricLine lyric, bool isCurrent, int index) {
+    // 计算模糊度：与当前歌词行的距离乘以4
+    final blurAmount = (index - _currentLyricIndex).abs().clamp(0, 6).toDouble();
+
+    // 如果是当前歌词行，不应用模糊；否则根据距离应用模糊效果
+    if (!isCurrent && blurAmount > 0) {
+      return ClipRect(
+        child: ImageFiltered(
+          imageFilter: ImageFilter.blur(sigmaX: blurAmount, sigmaY: blurAmount),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            child: LyricLineWithTranslationWidget(
+              lyric: lyric,
+              isCurrent: isCurrent,
+              player: _playerService,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // 当前歌词行保持清晰显示
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       child: LyricLineWithTranslationWidget(
@@ -606,7 +642,7 @@ class _LyricLineWithTranslationWidgetState
             child: Text(
               widget.lyric.translation!,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 20,
                 color: LyricsColors.secondaryColor,
                 height: 1.3,
               ),
@@ -638,11 +674,8 @@ class LyricLineWidget extends StatelessWidget {
         position: position,
       );
     }
-    
-    return LyricsWorldWidget(
-      word: lyric.text,
-      isActive: isCurrent,
-    );
+
+    return LyricsWorldWidget(word: lyric.text, isActive: isCurrent);
   }
 }
 
@@ -670,14 +703,10 @@ class LyricsWorldWidget extends StatelessWidget {
           position: Tween<Offset>(
             begin: const Offset(0, 0),
             end: isActive ? const Offset(0, -0.1) : const Offset(0, 0),
-          ).animate(CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeInOut,
-          )),
-          child: FadeTransition(
-            opacity: animation,
-            child: child,
+          ).animate(
+            CurvedAnimation(parent: animation, curve: Curves.easeInOut),
           ),
+          child: FadeTransition(opacity: animation, child: child),
         );
       },
       child: Builder(
@@ -692,7 +721,7 @@ class LyricsWorldWidget extends StatelessWidget {
                 Text(
                   word,
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: LyricsColors.secondaryColor,
                   ),
@@ -704,7 +733,7 @@ class LyricsWorldWidget extends StatelessWidget {
                     child: Text(
                       word,
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: LyricsColors.primaryColor,
                       ),
@@ -714,14 +743,17 @@ class LyricsWorldWidget extends StatelessWidget {
               ],
             );
           }
-          
+
           // 普通文字显示
           return Text(
             word,
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: isActive ? LyricsColors.primaryColor : LyricsColors.secondaryColor,
+              color:
+                  isActive
+                      ? LyricsColors.primaryColor
+                      : LyricsColors.secondaryColor,
             ),
           );
         },
@@ -812,7 +844,7 @@ class _OptimizedWordLyricsState extends State<_OptimizedWordLyrics>
   @override
   void didUpdateWidget(_OptimizedWordLyrics oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     if (oldWidget.wordTimings != widget.wordTimings ||
         oldWidget.isCurrent != widget.isCurrent) {
       _disposeAnimations();
@@ -831,14 +863,12 @@ class _OptimizedWordLyricsState extends State<_OptimizedWordLyrics>
       ),
     );
 
-    _animations = _controllers.map((controller) {
-      return Tween<double>(begin: 0.0, end: 1.0).animate(
-        CurvedAnimation(
-          parent: controller,
-          curve: Curves.easeOutCubic,
-        ),
-      );
-    }).toList();
+    _animations =
+        _controllers.map((controller) {
+          return Tween<double>(begin: 0.0, end: 1.0).animate(
+            CurvedAnimation(parent: controller, curve: Curves.easeOutCubic),
+          );
+        }).toList();
 
     _updateAnimations();
   }
@@ -849,14 +879,15 @@ class _OptimizedWordLyricsState extends State<_OptimizedWordLyrics>
     for (int i = 0; i < widget.wordTimings.length; i++) {
       final wordTiming = widget.wordTimings[i];
       final controller = _controllers[i];
-      
+
       double targetProgress;
       bool shouldAnimate = false;
-      
-      if (widget.position >= wordTiming.startTime && 
+
+      if (widget.position >= wordTiming.startTime &&
           widget.position <= wordTiming.endTime) {
-        targetProgress = (widget.position - wordTiming.startTime).inMilliseconds /
-                         (wordTiming.endTime - wordTiming.startTime).inMilliseconds;
+        targetProgress =
+            (widget.position - wordTiming.startTime).inMilliseconds /
+            (wordTiming.endTime - wordTiming.startTime).inMilliseconds;
         shouldAnimate = true;
       } else if (widget.position > wordTiming.endTime) {
         targetProgress = 1.0;
@@ -890,15 +921,15 @@ class _OptimizedWordLyricsState extends State<_OptimizedWordLyrics>
     return Wrap(
       children: List.generate(widget.wordTimings.length, (index) {
         final wordTiming = widget.wordTimings[index];
-        
+
         bool isWordActive = false;
         if (widget.isCurrent) {
-          if (widget.position >= wordTiming.startTime || 
+          if (widget.position >= wordTiming.startTime ||
               widget.position > wordTiming.endTime) {
             isWordActive = true;
           }
         }
-        
+
         return KeyedSubtree(
           key: ValueKey('${wordTiming.word}_$index'),
           child: AnimatedBuilder(
@@ -922,7 +953,7 @@ class _OptimizedWordLyricsState extends State<_OptimizedWordLyrics>
 class LyricsColors {
   /// 主要文字颜色 - 高亮白色
   static Color primaryColor = Colors.white.withValues(alpha: 0.9);
-  
+
   /// 次要文字颜色 - 半透明白色
   static Color secondaryColor = Colors.white.withValues(alpha: 0.4);
 }
