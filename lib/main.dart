@@ -21,7 +21,7 @@ void main() async {
   
   // 创建音频服务实例并恢复播放状态
   final audioService = AudioPlayerService();
-  await audioService.restorePlaylistState();
+  // await audioService.restorePlaylistState();
   
   runApp(KanadeApp(audioService: audioService));
 }

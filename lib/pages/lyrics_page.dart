@@ -1,10 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:kanade/services/services.dart';
 import 'package:provider/provider.dart';
 import 'package:palette_generator/palette_generator.dart';
 import '../models/song.dart';
 import '../services/audio_player_service.dart';
-import '../services/lyrics_service.dart';
+// 移除不必要的导入
+// import '../services/lyrics_service.dart';
 import '../services/color_cache_service.dart';
 import '../widgets/color_blender.dart';
 
@@ -28,12 +31,12 @@ class _LyricsPageState extends State<LyricsPage> {
   int _currentLyricIndex = -1;
   List<Color> _extractedColors = [Colors.black];
   final double _blendIntensity = 8;
-  bool _isLoadingColors = false;
   String? _lastSongId;
   late Song song;
   List<double> _lyricsLineHeights = [];
   List<double> _prefixSumHeights = []; // 前缀和数组，用于快速计算累积高度
   final List<GlobalKey> _lyricLineKeys = []; // 存储每行歌词的GlobalKey
+  final List<bool> _lyricBuilded = []; // 存储每行歌词是否已经构建
   double _offset = 0;
   double _screenHeight = 0;
 
@@ -88,28 +91,28 @@ class _LyricsPageState extends State<LyricsPage> {
         lyrics = await LyricsService.getLyricsForSong(song);
       }
 
-      setState(() {
-        _lyrics = lyrics ?? [];
-        _hasLyrics = lyrics != null && lyrics.isNotEmpty;
-        _isLoading = false;
-        // 初始化GlobalKey列表
-        _lyricLineKeys.clear();
-        _lyricLineKeys.addAll(
-          List.generate(_lyrics.length, (index) => GlobalKey()),
-        );
-      });
+      _lyrics = lyrics ?? [];
+      _hasLyrics = lyrics != null && lyrics.isNotEmpty;
+      _isLoading = false;
+      // 初始化GlobalKey列表
+      _lyricLineKeys.clear();
+      _lyricLineKeys.addAll(
+        List.generate(_lyrics.length, (index) => GlobalKey()),
+      );
+      // 初始化构建状态列表
+      _lyricBuilded.clear();
+      _lyricBuilded.addAll(List.generate(_lyrics.length, (index) => false));
 
       // 延迟计算高度，确保Widget已经渲染
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _calculateLyricsLineHeightsWithGlobalKey();
       });
     } catch (e) {
-      print('加载歌词失败: $e');
-      setState(() {
-        _isLoading = false;
-        _hasLyrics = false;
-      });
+      debugPrint('加载歌词失败: $e');
+      _isLoading = false;
+      _hasLyrics = false;
     }
+    setState(() {});
   }
 
   /// 监听播放位置变化
@@ -122,9 +125,7 @@ class _LyricsPageState extends State<LyricsPage> {
     );
 
     if (currentIndex != _currentLyricIndex) {
-      setState(() {
-        _currentLyricIndex = currentIndex;
-      });
+      _currentLyricIndex = currentIndex;
       _scrollToCurrentLyric();
     }
   }
@@ -134,7 +135,7 @@ class _LyricsPageState extends State<LyricsPage> {
   /// 通过GlobalKey获取每行歌词的实际渲染高度，然后构建前缀和数组
   /// 这种方法比TextPainter估算更准确，因为它使用实际渲染结果
   void _calculateLyricsLineHeightsWithGlobalKey() {
-    if (_lyrics.isEmpty || !mounted) return;
+    if (_lyrics.isEmpty || !mounted || !_lyricBuilded.every((e)=>e)) return;
 
     final List<double> lineHeights = [];
     final List<double> prefixSum = [0.0]; // 前缀和数组，第一个元素为0
@@ -152,10 +153,12 @@ class _LyricsPageState extends State<LyricsPage> {
           lineHeight = renderBox.size.height;
         } else {
           // 如果无法获取实际高度，使用估算值
+          debugPrint('无法获取歌词行 $i 的实际高度，使用估算值');
           lineHeight = _estimateLineHeight(_lyrics[i]);
         }
       } else {
         // 如果没有GlobalKey，使用估算值
+        debugPrint('歌词行 $i 没有GlobalKey，使用估算值');
         lineHeight = _estimateLineHeight(_lyrics[i]);
       }
 
@@ -163,10 +166,8 @@ class _LyricsPageState extends State<LyricsPage> {
       prefixSum.add(prefixSum[i] + lineHeight); // 构建前缀和
     }
 
-    setState(() {
-      _lyricsLineHeights = lineHeights;
-      _prefixSumHeights = prefixSum;
-    });
+    _lyricsLineHeights = lineHeights;
+    _prefixSumHeights = prefixSum;
 
     // 高度计算完成后，重新滚动到当前歌词
     if (_currentLyricIndex >= 0) {
@@ -209,7 +210,7 @@ class _LyricsPageState extends State<LyricsPage> {
       final translationPainter = TextPainter(
         text: TextSpan(
           text: lyric.translation,
-          style: const TextStyle(fontSize: 14, color: Colors.grey, height: 1.3),
+          style: TextStyle(fontSize: 14, color: LyricsColors.secondaryColor, height: 1.3),
         ),
         maxLines: null,
         textDirection: TextDirection.ltr,
@@ -231,28 +232,22 @@ class _LyricsPageState extends State<LyricsPage> {
     if (index < 0 || index >= _prefixSumHeights.length - 1) {
       return 0.0;
     }
-    return _prefixSumHeights[index + 1]; // 因为prefixSum[0] = 0.0
+    return _prefixSumHeights[index + 1];
   }
 
-  /// 使用前缀和算法获取指定范围的累积高度
-  ///
-  /// @param startIndex 起始索引（包含）
-  /// @param endIndex 结束索引（包含）
-  /// @return 从startIndex到endIndex的累积高度
-  double _getRangeCumulativeHeight(int startIndex, int endIndex) {
-    if (startIndex < 0 ||
-        endIndex >= _lyricsLineHeights.length ||
-        startIndex > endIndex) {
-      return 0.0;
-    }
-
-    return _prefixSumHeights[endIndex + 1] - _prefixSumHeights[startIndex];
-  }
+  // 移除未使用的方法
+  // double _getRangeCumulativeHeight(int startIndex, int endIndex) {
+  //   if (startIndex < 0 ||
+  //       endIndex >= _lyricsLineHeights.length ||
+  //       startIndex > endIndex) {
+  //     return 0.0;
+  //   }
+  //
+  //   return _prefixSumHeights[endIndex + 1] - _prefixSumHeights[startIndex];
+  // }
 
   /// 滚动到当前歌词 - 使用GlobalKey计算的精确高度
   void _scrollToCurrentLyric() {
-    // if (_currentLyricIndex < 0) return;
-
     // 如果高度还未计算，延迟计算
     if (_prefixSumHeights.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -261,22 +256,9 @@ class _LyricsPageState extends State<LyricsPage> {
       return;
     }
 
-    final currentLineHeight =
-        _currentLyricIndex < _lyricsLineHeights.length
-            ? _lyricsLineHeights[_currentLyricIndex]
-            : 60.0;
-
     final targetOffset = _getCumulativeHeight(_currentLyricIndex - 1);
-
-    // _scrollController.animateTo(
-    //   targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
-    //   duration: const Duration(milliseconds: 300),
-    //   curve: Curves.easeOut,
-    // );
-    setState(() {
-      _offset = targetOffset;
-      print('targetOffset: $targetOffset');
-    });
+    _offset = targetOffset;
+    setState(() {});
   }
 
   /// 获取当前歌词行的精确高度
@@ -313,8 +295,8 @@ class _LyricsPageState extends State<LyricsPage> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withOpacity(0.3),
-                    Colors.black.withOpacity(0.5),
+                    Colors.black.withValues(alpha: 0.3),
+                    Colors.black.withValues(alpha: 0.5),
                   ],
                 ),
               ),
@@ -370,7 +352,7 @@ class _LyricsPageState extends State<LyricsPage> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: Container(
-                color: Colors.white.withValues(alpha: .8),
+                color: LyricsColors.primaryColor,
                 child:
                     cover != null
                         ? Image.memory(cover, width: 75, height: 75)
@@ -378,7 +360,7 @@ class _LyricsPageState extends State<LyricsPage> {
               ),
             ),
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -388,7 +370,7 @@ class _LyricsPageState extends State<LyricsPage> {
                   song.title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.white.withOpacity(0.8),
+                    color: LyricsColors.primaryColor,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -396,7 +378,7 @@ class _LyricsPageState extends State<LyricsPage> {
                 Text(
                   song.artist,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.white.withOpacity(0.6),
+                    color: LyricsColors.secondaryColor,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -412,8 +394,8 @@ class _LyricsPageState extends State<LyricsPage> {
   /// 构建歌词内容
   Widget _buildLyricsContent() {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: Colors.white),
+      return Center(
+        child: CircularProgressIndicator(color: LyricsColors.primaryColor),
       );
     }
 
@@ -422,160 +404,92 @@ class _LyricsPageState extends State<LyricsPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.lyrics_outlined, size: 64, color: Colors.grey),
+            Icon(Icons.lyrics_outlined, size: 64, color: LyricsColors.secondaryColor),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               '暂无歌词',
-              style: TextStyle(color: Colors.grey, fontSize: 18),
+              style: TextStyle(color: LyricsColors.secondaryColor, fontSize: 18),
             ),
             const SizedBox(height: 8),
             Text(
               '请确保歌曲目录下有对应的.lrc文件',
-              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              style: TextStyle(color: LyricsColors.secondaryColor, fontSize: 14),
             ),
           ],
         ),
       );
     }
 
-    return Consumer<AudioPlayerService>(
-      builder: (context, player, child) {
-        return Stack(
-          children: List.generate(_lyrics.length, (index) {
-            final lyric = _lyrics[index];
-            final isCurrent = index == _currentLyricIndex;
-            final top = _getCumulativeHeight(index - 1) - _offset + 48;
-            final height = _getCurrentLineHeight(index);
-            final bottom = top + height;
-            if (bottom < 0 || top > _screenHeight) {
-              return Container();
-            }
-            final duration = Duration(
-              milliseconds: (300 + 400 * (index - _currentLyricIndex) ~/ 4)
-                  .clamp(50, 800),
-            );
-
-            return AnimatedPositioned(
-              key: ValueKey('lyric-$index'),
-              duration: duration,
-              curve: Curves.easeOut,
-              top: top,
-              left: 0,
-              right: 0,
-              child: _buildLyricLine(lyric, isCurrent, index),
-            );
-          }),
+    return Stack(
+      children: List.generate(_lyrics.length, (index) {
+        final lyric = _lyrics[index];
+        final isCurrent = index == _currentLyricIndex;
+        final top = _getCumulativeHeight(index - 1) - _offset + 48;
+        final height = _getCurrentLineHeight(index);
+        final bottom = top + height;
+        if (bottom < 0 || top > _screenHeight) {
+          return Container();
+        }
+        final duration = Duration(
+          milliseconds: (300 + 400 * (index - _currentLyricIndex) ~/ 4).clamp(
+            50,
+            800,
+          ),
         );
-      },
+        _lyricBuilded[index] = true;
+        
+        return AnimatedPositioned(
+          key: _lyricLineKeys[index],
+          duration: duration,
+          curve: Curves.easeInOut,
+          top: top,
+          left: 0,
+          right: 0,
+          child: _buildLyricLine(lyric, isCurrent, index),
+        );
+      }),
     );
   }
 
   /// 构建单行歌词
   Widget _buildLyricLine(LyricLine lyric, bool isCurrent, int index) {
     return Container(
-      key: _lyricLineKeys[index],
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildLyricsLine(lyric, isCurrent),
-          // 翻译文本（如果有）
-          if (lyric.translation != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                lyric.translation!,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[400],
-                  height: 1.3,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  /// 构建逐字歌词
-  Widget _buildLyricsLine(LyricLine lyric, bool isCurrent) {
-    final player = Provider.of<AudioPlayerService>(context, listen: true);
-    final currentPosition = player.position;
-
-    if (lyric.wordTimings != null && lyric.wordTimings!.isNotEmpty) {
-      return Wrap(
-        children:
-            lyric.wordTimings!.map((wordTiming) {
-              final isWordActive =
-                  isCurrent && currentPosition >= wordTiming.startTime;
-              final progress =
-                  isWordActive
-                      ? (currentPosition - wordTiming.startTime)
-                              .inMilliseconds /
-                          (wordTiming.endTime - wordTiming.startTime)
-                              .inMilliseconds
-                      : null;
-              return _buildLyricsWorld(
-                wordTiming.word,
-                isWordActive,
-                progress: progress,
-              );
-            }).toList(),
-      );
-    }
-    return _buildLyricsWorld(lyric.text, isCurrent, progress: null);
-  }
-
-  Widget _buildLyricsWorld(String world, bool isActive, {double? progress}) {
-    return Text(
-      world,
-      style: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        color: isActive ? Colors.white : Colors.grey,
+      child: LyricLineWithTranslationWidget(
+        lyric: lyric,
+        isCurrent: isCurrent,
+        player: _playerService,
       ),
     );
   }
 
   /// 从当前歌曲的专辑封面提取颜色
-  /// 优先使用缓存，无缓存时提取并缓存
   Future<void> _extractColorsFromCurrentSong() async {
+    // 移除不必要的null检查
     final currentSong = song;
-    if (currentSong == null) return;
+    // if (currentSong == null) return; // 这行可以移除，因为song总是非null
 
-    // 如果歌曲没有变化，直接返回
     if (_lastSongId == currentSong.id) {
       return;
     }
 
     _lastSongId = currentSong.id;
 
-    // 检查缓存
     final cachedColors = ColorCacheService.instance.getColors(currentSong.id);
     if (cachedColors != null) {
-      setState(() {
-        _extractedColors = cachedColors;
-        _isLoadingColors = false;
-      });
+      _extractedColors = cachedColors;
       return;
     }
-
-    setState(() {
-      _isLoadingColors = true;
-    });
 
     try {
       final albumArt = _playerService.getAlbumArtForSong(currentSong);
       List<Color> extractedColors = [];
 
       if (albumArt != null) {
-        // 从内存图片提取颜色
         final imageProvider = MemoryImage(albumArt);
         final palette = await PaletteGenerator.fromImageProvider(imageProvider);
 
-        // 提取主要颜色
         final colors = <Color>[];
-
         if (palette.dominantColor != null) {
           colors.add(palette.dominantColor!.color);
         }
@@ -594,7 +508,6 @@ class _LyricsPageState extends State<LyricsPage> {
 
         extractedColors = colors.toList();
       } else if (currentSong.albumId != null) {
-        // 异步加载封面并提取颜色
         await _playerService.loadAlbumArtForSong(currentSong);
         final loadedArt = _playerService.getAlbumArtForSong(currentSong);
         if (loadedArt != null) {
@@ -616,18 +529,400 @@ class _LyricsPageState extends State<LyricsPage> {
         }
       }
 
-      // 缓存提取的颜色
       ColorCacheService.instance.cacheColors(currentSong.id, extractedColors);
-
-      setState(() {
-        _extractedColors = extractedColors;
-        _isLoadingColors = false;
-      });
+      _extractedColors = extractedColors;
     } catch (e) {
       debugPrint('颜色提取失败: $e');
-      setState(() {
-        _isLoadingColors = false;
+    }
+  }
+}
+
+class LyricLineWithTranslationWidget extends StatefulWidget {
+  final LyricLine lyric;
+  final bool isCurrent;
+  final AudioPlayerService player;
+
+  const LyricLineWithTranslationWidget({
+    super.key,
+    required this.lyric,
+    required this.isCurrent,
+    required this.player,
+  });
+
+  @override
+  State<LyricLineWithTranslationWidget> createState() =>
+      _LyricLineWithTranslationWidgetState();
+}
+
+class _LyricLineWithTranslationWidgetState
+    extends State<LyricLineWithTranslationWidget> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimerIfNeeded();
+  }
+
+  @override
+  void didUpdateWidget(covariant LyricLineWithTranslationWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isCurrent != widget.isCurrent) {
+      _startTimerIfNeeded();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _startTimerIfNeeded() {
+    _timer?.cancel();
+    if (widget.isCurrent) {
+      _timer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
+        if (mounted) {
+          setState(() {});
+        }
       });
     }
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LyricLineWidget(
+          lyric: widget.lyric,
+          isCurrent: widget.isCurrent,
+          position: widget.player.position,
+        ),
+        // 翻译文本（如果有）
+        if (widget.lyric.translation != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              widget.lyric.translation!,
+              style: TextStyle(
+                fontSize: 14,
+                color: LyricsColors.secondaryColor,
+                height: 1.3,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class LyricLineWidget extends StatelessWidget {
+  final LyricLine lyric;
+  final bool isCurrent;
+  final Duration position;
+
+  const LyricLineWidget({
+    super.key,
+    required this.lyric,
+    required this.isCurrent,
+    required this.position,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (lyric.wordTimings != null && lyric.wordTimings!.isNotEmpty) {
+      return _OptimizedWordLyrics(
+        wordTimings: lyric.wordTimings!,
+        isCurrent: isCurrent,
+        position: position,
+      );
+    }
+    
+    return LyricsWorldWidget(
+      word: lyric.text,
+      isActive: isCurrent,
+    );
+  }
+}
+
+/// 支持上升动画的逐字歌词文字组件
+class LyricsWorldWidget extends StatelessWidget {
+  final String word;
+  final bool isActive;
+  final double? progress;
+
+  const LyricsWorldWidget({
+    super.key,
+    required this.word,
+    required this.isActive,
+    this.progress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // 使用Transform和AnimatedSwitcher实现上升动画
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 500),
+      transitionBuilder: (Widget child, Animation<double> animation) {
+        // 使用SlideTransition实现上升效果
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0),
+            end: isActive ? const Offset(0, -0.1) : const Offset(0, 0),
+          ).animate(CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeInOut,
+          )),
+          child: FadeTransition(
+            opacity: animation,
+            child: child,
+          ),
+        );
+      },
+      child: Builder(
+        key: ValueKey('${word}_$isActive'),
+        builder: (context) {
+          if (progress != null && isActive) {
+            // 使用平滑动画组件实现流畅的进度过渡
+            return Stack(
+              alignment: Alignment.centerLeft,
+              children: [
+                // 基础文字（灰色背景）
+                Text(
+                  word,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: LyricsColors.secondaryColor,
+                  ),
+                ),
+                // 渐变覆盖层（高亮进度）
+                ClipRect(
+                  child: _SmoothProgressAnimation(
+                    progress: progress!,
+                    child: Text(
+                      word,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: LyricsColors.primaryColor,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+          
+          // 普通文字显示
+          return Text(
+            word,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: isActive ? LyricsColors.primaryColor : LyricsColors.secondaryColor,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// 自定义裁剪器，实现硬渐变效果
+class _ProgressClipper extends CustomClipper<Rect> {
+  final double progress;
+
+  const _ProgressClipper({required this.progress});
+
+  @override
+  Rect getClip(Size size) {
+    // 创建从左到右的硬渐变裁剪区域
+    return Rect.fromLTWH(
+      0,
+      0,
+      size.width * progress.clamp(0.0, 1.0),
+      size.height,
+    );
+  }
+
+  @override
+  bool shouldReclip(_ProgressClipper oldClipper) {
+    return oldClipper.progress != progress;
+  }
+}
+
+/// 平滑进度动画组件
+class _SmoothProgressAnimation extends StatelessWidget {
+  final double progress;
+  final Widget child;
+  final Duration duration;
+
+  const _SmoothProgressAnimation({
+    required this.progress,
+    required this.child,
+    this.duration = const Duration(milliseconds: 150),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.0, end: progress),
+      duration: duration,
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return ClipRect(
+          clipper: _ProgressClipper(progress: value),
+          child: child,
+        );
+      },
+      child: child,
+    );
+  }
+}
+
+/// 优化的逐字歌词组件，使用动画实现流畅过渡
+class _OptimizedWordLyrics extends StatefulWidget {
+  final List<WordTiming> wordTimings;
+  final bool isCurrent;
+  final Duration position;
+
+  const _OptimizedWordLyrics({
+    required this.wordTimings,
+    required this.isCurrent,
+    required this.position,
+  });
+
+  @override
+  State<_OptimizedWordLyrics> createState() => _OptimizedWordLyricsState();
+}
+
+class _OptimizedWordLyricsState extends State<_OptimizedWordLyrics>
+    with TickerProviderStateMixin {
+  late List<AnimationController> _controllers;
+  late List<Animation<double>> _animations;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeAnimations();
+  }
+
+  @override
+  void didUpdateWidget(_OptimizedWordLyrics oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    
+    if (oldWidget.wordTimings != widget.wordTimings ||
+        oldWidget.isCurrent != widget.isCurrent) {
+      _disposeAnimations();
+      _initializeAnimations();
+    } else {
+      _updateAnimations();
+    }
+  }
+
+  void _initializeAnimations() {
+    _controllers = List.generate(
+      widget.wordTimings.length,
+      (index) => AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 200),
+      ),
+    );
+
+    _animations = _controllers.map((controller) {
+      return Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: controller,
+          curve: Curves.easeOutCubic,
+        ),
+      );
+    }).toList();
+
+    _updateAnimations();
+  }
+
+  void _updateAnimations() {
+    if (!widget.isCurrent) return;
+
+    for (int i = 0; i < widget.wordTimings.length; i++) {
+      final wordTiming = widget.wordTimings[i];
+      final controller = _controllers[i];
+      
+      double targetProgress;
+      bool shouldAnimate = false;
+      
+      if (widget.position >= wordTiming.startTime && 
+          widget.position <= wordTiming.endTime) {
+        targetProgress = (widget.position - wordTiming.startTime).inMilliseconds /
+                         (wordTiming.endTime - wordTiming.startTime).inMilliseconds;
+        shouldAnimate = true;
+      } else if (widget.position > wordTiming.endTime) {
+        targetProgress = 1.0;
+        shouldAnimate = true;
+      } else {
+        targetProgress = 0.0;
+      }
+
+      if (shouldAnimate && controller.value != targetProgress) {
+        controller.animateTo(targetProgress);
+      } else if (!shouldAnimate && controller.value != 0.0) {
+        controller.animateTo(0.0);
+      }
+    }
+  }
+
+  void _disposeAnimations() {
+    for (final controller in _controllers) {
+      controller.dispose();
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposeAnimations();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      children: List.generate(widget.wordTimings.length, (index) {
+        final wordTiming = widget.wordTimings[index];
+        
+        bool isWordActive = false;
+        if (widget.isCurrent) {
+          if (widget.position >= wordTiming.startTime || 
+              widget.position > wordTiming.endTime) {
+            isWordActive = true;
+          }
+        }
+        
+        return KeyedSubtree(
+          key: ValueKey('${wordTiming.word}_$index'),
+          child: AnimatedBuilder(
+            animation: _animations[index],
+            builder: (context, child) {
+              return LyricsWorldWidget(
+                word: wordTiming.word,
+                isActive: isWordActive,
+                progress: isWordActive ? _animations[index].value : null,
+              );
+            },
+          ),
+        );
+      }),
+    );
+  }
+}
+
+/// 歌词页面颜色定义类
+/// 提供歌词页面使用的标准颜色常量
+class LyricsColors {
+  /// 主要文字颜色 - 高亮白色
+  static Color primaryColor = Colors.white.withValues(alpha: 0.9);
+  
+  /// 次要文字颜色 - 半透明白色
+  static Color secondaryColor = Colors.white.withValues(alpha: 0.4);
 }
