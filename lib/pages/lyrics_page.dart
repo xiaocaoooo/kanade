@@ -460,19 +460,19 @@ class _LyricsPageState extends State<LyricsPage> {
           top: top,
           left: 0,
           right: 0,
-          child: _buildLyricLine(lyric, isCurrent, index),
+          child: _buildLyricLine(lyric, isCurrent, index, top, bottom),
         );
       }),
     );
   }
 
   /// 构建单行歌词
-  Widget _buildLyricLine(LyricLine lyric, bool isCurrent, int index) {
+  Widget _buildLyricLine(LyricLine lyric, bool isCurrent, int index, double top, double bottom) {
     // 计算模糊度：与当前歌词行的距离乘以4
     final blurAmount = (index - _currentLyricIndex).abs().clamp(0, 6).toDouble();
 
     // 如果是当前歌词行，不应用模糊；否则根据距离应用模糊效果
-    if (!isCurrent && blurAmount > 0) {
+    if (!isCurrent && blurAmount > 0&&bottom>0&&top<_screenHeight) {
       return ClipRect(
         child: ImageFiltered(
           imageFilter: ImageFilter.blur(sigmaX: blurAmount, sigmaY: blurAmount),
