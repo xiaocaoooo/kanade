@@ -446,9 +446,9 @@ class _LyricsPageState extends State<LyricsPage> {
           return Container();
         }
         final duration = Duration(
-          milliseconds: (300 + 400 * (index - _currentLyricIndex) ~/ 4).clamp(
-            50,
-            800,
+          milliseconds: (400 + 400 * (index - _currentLyricIndex) ~/ 4).clamp(
+            300,
+            1200,
           ),
         );
         _lyricBuilded[index] = true;
@@ -467,12 +467,19 @@ class _LyricsPageState extends State<LyricsPage> {
   }
 
   /// 构建单行歌词
-  Widget _buildLyricLine(LyricLine lyric, bool isCurrent, int index, double top, double bottom) {
+  Widget _buildLyricLine(
+    LyricLine lyric,
+    bool isCurrent,
+    int index,
+    double top,
+    double bottom,
+  ) {
     // 计算模糊度：与当前歌词行的距离乘以4
-    final blurAmount = (index - _currentLyricIndex).abs().clamp(0, 6).toDouble();
+    final blurAmount =
+        (index - _currentLyricIndex).abs().clamp(0, 6).toDouble();
 
     // 如果是当前歌词行，不应用模糊；否则根据距离应用模糊效果
-    if (!isCurrent && blurAmount > 0&&bottom>0&&top<_screenHeight) {
+    if (!isCurrent && blurAmount > 0 && bottom > 0 && top < _screenHeight) {
       return ClipRect(
         child: ImageFiltered(
           imageFilter: ImageFilter.blur(sigmaX: blurAmount, sigmaY: blurAmount),
@@ -740,21 +747,57 @@ class LyricsWorldWidget extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (isActive)
+                  ClipRect(
+                    child: _SmoothProgressAnimation(
+                      progress: progress!,
+                      child: ImageFiltered(
+                        imageFilter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+                        child: Text(
+                          word,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: LyricsColors.primaryColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             );
           }
 
           // 普通文字显示
-          return Text(
-            word,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color:
-                  isActive
-                      ? LyricsColors.primaryColor
-                      : LyricsColors.secondaryColor,
-            ),
+          return Stack(
+            children: [
+              Text(
+                word,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color:
+                      isActive
+                          ? LyricsColors.primaryColor
+                          : LyricsColors.secondaryColor,
+                ),
+              ),
+              if (isActive)
+                ImageFiltered(
+                  imageFilter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+                  child: Text(
+                    word,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color:
+                          isActive
+                              ? LyricsColors.primaryColor
+                              : LyricsColors.secondaryColor,
+                    ),
+                  ),
+                ),
+            ],
           );
         },
       ),
