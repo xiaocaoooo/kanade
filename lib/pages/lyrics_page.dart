@@ -211,7 +211,7 @@ class _LyricsPageState extends State<LyricsPage> {
       final translationPainter = TextPainter(
         text: TextSpan(
           text: lyric.translation,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 14,
             color: LyricsColors.secondaryColor,
             height: 1.3,
@@ -295,13 +295,13 @@ class _LyricsPageState extends State<LyricsPage> {
           // 内容层 - 半透明遮罩
           Positioned.fill(
             child: Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.3),
-                    Colors.black.withValues(alpha: 0.5),
+                    Color.fromRGBO(0, 0, 0, 0.3),
+                    Color.fromRGBO(0, 0, 0, 0.5),
                   ],
                 ),
               ),
@@ -319,7 +319,7 @@ class _LyricsPageState extends State<LyricsPage> {
                     return LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [
+                      colors: const [
                         Colors.transparent, // 渐变开始
                         Colors.transparent,
                         Colors.black, // 底部完全不透明
@@ -417,7 +417,7 @@ class _LyricsPageState extends State<LyricsPage> {
             const SizedBox(height: 16),
             Text(
               '暂无歌词',
-              style: TextStyle(
+              style: const TextStyle(
                 color: LyricsColors.secondaryColor,
                 fontSize: 18,
               ),
@@ -425,7 +425,7 @@ class _LyricsPageState extends State<LyricsPage> {
             const SizedBox(height: 8),
             Text(
               '请确保歌曲目录下有对应的.lrc文件',
-              style: TextStyle(
+              style: const TextStyle(
                 color: LyricsColors.secondaryColor,
                 fontSize: 14,
               ),
@@ -495,7 +495,7 @@ class _LyricsPageState extends State<LyricsPage> {
       );
     }
 
-    // 当前歌词行保持清晰显示
+      // 当前歌词行保持清晰显示
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       child: LyricLineWithTranslationWidget(
@@ -647,13 +647,13 @@ class _LyricLineWithTranslationWidgetState
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
-              widget.lyric.translation!,
-              style: TextStyle(
-                fontSize: 20,
-                color: LyricsColors.secondaryColor,
-                height: 1.3,
+                widget.lyric.translation!,
+                style: const TextStyle(
+                  fontSize: 20,
+                  color: LyricsColors.secondaryColor,
+                  height: 1.3,
+                ),
               ),
-            ),
           ),
       ],
     );
@@ -727,7 +727,7 @@ class LyricsWorldWidget extends StatelessWidget {
                 // 基础文字（灰色背景）
                 Text(
                   word,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: LyricsColors.secondaryColor,
@@ -739,7 +739,7 @@ class LyricsWorldWidget extends StatelessWidget {
                     progress: progress!,
                     child: Text(
                       word,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: LyricsColors.primaryColor,
@@ -755,7 +755,7 @@ class LyricsWorldWidget extends StatelessWidget {
                         imageFilter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
                         child: Text(
                           word,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: LyricsColors.primaryColor,
@@ -786,16 +786,16 @@ class LyricsWorldWidget extends StatelessWidget {
                 ImageFiltered(
                   imageFilter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
                   child: Text(
-                    word,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color:
-                          isActive
-                              ? LyricsColors.primaryColor
-                              : LyricsColors.secondaryColor,
-                    ),
-                  ),
+                     word,
+                     style: TextStyle(
+                       fontSize: 24,
+                       fontWeight: FontWeight.bold,
+                       color:
+                           isActive
+                               ? LyricsColors.primaryColor
+                               : LyricsColors.secondaryColor,
+                     ),
+                   ),
                 ),
             ],
           );
@@ -832,19 +832,17 @@ class _ProgressClipper extends CustomClipper<Rect> {
 class _SmoothProgressAnimation extends StatelessWidget {
   final double progress;
   final Widget child;
-  final Duration duration;
 
   const _SmoothProgressAnimation({
     required this.progress,
     required this.child,
-    this.duration = const Duration(milliseconds: 150),
   });
 
   @override
   Widget build(BuildContext context) {
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0.0, end: progress),
-      duration: duration,
+      duration: const Duration(milliseconds: 150),
       curve: Curves.easeOutCubic,
       builder: (context, value, child) {
         return ClipRect(
@@ -995,8 +993,8 @@ class _OptimizedWordLyricsState extends State<_OptimizedWordLyrics>
 /// 提供歌词页面使用的标准颜色常量
 class LyricsColors {
   /// 主要文字颜色 - 高亮白色
-  static Color primaryColor = Colors.white.withValues(alpha: 0.9);
+  static const Color primaryColor = Color.fromRGBO(255, 255, 255, 0.9);
 
   /// 次要文字颜色 - 半透明白色
-  static Color secondaryColor = Colors.white.withValues(alpha: 0.4);
+  static const Color secondaryColor = Color.fromRGBO(255, 255, 255, 0.4);
 }
