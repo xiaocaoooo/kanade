@@ -1,22 +1,8 @@
-name: kanade
-description: "A new Flutter project."
+name: kanada_lyric_sender_example
+description: "Demonstrates how to use the kanada_lyric_sender plugin."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: "none" # Remove this line if you wish to publish to pub.dev
-
-# The following defines the version and build number for your application.
-# A version number is three numbers separated by dots, like 1.2.43
-# followed by an optional build number separated by a +.
-# Both the version and the builder number may be overridden in flutter
-# build by specifying --build-name and --build-number, respectively.
-# In Android, build-name is used as versionName while build-number used as versionCode.
-# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
-# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
-# Read more about iOS versioning at
-# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
-# In Windows, build-name is used as the major, minor, and patch parts
-# of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 environment:
   sdk: ^3.7.2
@@ -31,28 +17,21 @@ dependencies:
   flutter:
     sdk: flutter
 
+  kanada_lyric_sender:
+    # When depending on this package from a real application you should use:
+    #   kanada_lyric_sender: ^x.y.z
+    # See https://dart.dev/tools/pub/dependencies#version-constraints
+    # The example app is bundled with the plugin so we use a path dependency on
+    # the parent directory to use the current plugin's version.
+    path: ../
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  dynamic_color: ^1.7.0
-  media_store_plus: ^0.1.3
-  permission_handler: ^11.3.1
-  device_info_plus: ^10.1.0
-  just_audio: ^0.9.38
-  just_audio_background:
-    path: ./just_audio_background
-  provider: ^6.1.2
-  shared_preferences: ^2.3.5
-  kanade_audio_plugin:
-    path: ./kanade_audio_plugin
-  kanada_volume:
-    path: ./kanada_volume
-  kanada_lyric_sender:
-    path: ./kanada_lyric_sender
-  palette_generator: ^0.3.3+7
-  audio_metadata_reader: ^1.4.1
 
 dev_dependencies:
+  integration_test:
+    sdk: flutter
   flutter_test:
     sdk: flutter
 
@@ -68,6 +47,7 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

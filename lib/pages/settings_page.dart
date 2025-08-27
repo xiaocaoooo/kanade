@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/settings_service.dart';
 import 'folder_whitelist_page.dart';
+import 'debug_lyric_sender_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -268,6 +269,21 @@ class _SettingsPageState extends State<SettingsPage> {
               ],
             ),
           ),
+          _buildSectionTitle('调试'),
+          ListTile(
+            title: const Text('歌词发送调试'),
+            subtitle: const Text('测试KanadaLyricSender插件功能'),
+            trailing: const Icon(Icons.bug_report),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const DebugLyricSenderPage(),
+                ),
+              );
+            },
+          ),
+          
           _buildSectionTitle('关于'),
           ListTile(
             title: const Text('版本信息'),

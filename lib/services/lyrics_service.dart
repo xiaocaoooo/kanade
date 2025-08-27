@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
+import 'package:kanada_lyric_sender/kanada_lyric_sender.dart';
 import '../models/song.dart';
 
 /// 歌词数据模型
@@ -337,5 +338,58 @@ class LyricsService {
     }
 
     return index;
+  }
+
+  /// 检查Lyric Getter是否已启用
+  static Future<bool> isLyricGetterEnabled() async {
+    try {
+      return await KanadaLyricSenderPlugin.hasEnable();
+    } catch (e) {
+      print('检查Lyric Getter状态失败: $e');
+      return false;
+    }
+  }
+
+  /// 发送歌词到外部API
+  static Future<void> sendLyricToExternal(String lyric, {int? delay}) async {
+    try {
+      await KanadaLyricSenderPlugin.sendLyric(lyric, delay);
+    } catch (e) {
+      print('发送歌词到外部API失败: $e');
+    }
+  }
+
+  /// 清除外部API显示的歌词
+  static Future<void> clearExternalLyric() async {
+    try {
+      await KanadaLyricSenderPlugin.clearLyric();
+    } catch (e) {
+      print('清除外部API歌词失败: $e');
+    }
+  }
+
+  /// 根据当前播放时间发送歌词到外部API
+  static Future<void> sendCurrentLyricToExternal(
+    List<LyricLine> lyrics,
+    Duration currentTime,
+  ) async {
+    // 首先检查Lyric Getter是否已启用
+    final isEnabled = await isLyricGetterEnabled();
+    if (!isEnabled) {
+      return;
+    }
+
+    final currentLyric = getCurrentLyric(lyrics, currentTime);
+    if (currentLyric != null) {
+      // 如果有翻译，合并歌词和翻译
+      String fullLyric = currentLyric.text;
+      if (currentLyric.translation != null && currentLyric.translation!.isNotEmpty) {
+        fullLyric = '$fullLyric\n${currentLyric.translation!}';
+      }
+      await sendLyricToExternal(fullLyric);
+    } else {
+      // 没有当前歌词时清除显示
+      await clearExternalLyric();
+    }
   }
 }

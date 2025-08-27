@@ -6,9 +6,9 @@ plugins {
 }
 
 android {
-    namespace = "io.github.xiaocaoooo.kanade"
+    namespace = "com.hontouniyuki.kanada_lyric_sender_example"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973"
+    ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "io.github.xiaocaoooo.kanade"
+        applicationId = "com.hontouniyuki.kanada_lyric_sender_example"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -35,18 +35,10 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
-            // 引用混淆规则文件
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }
 
 flutter {
     source = "../.."
-}
-
-dependencies {
-    // 添加 Google Play Core 依赖，解决 R8 代码压缩时的类缺失问题
-    implementation("com.google.android.play:core:1.10.3")
-    implementation("com.google.android.play:core-ktx:1.8.1")
 }
