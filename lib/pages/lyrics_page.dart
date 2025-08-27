@@ -276,70 +276,71 @@ class _LyricsPageState extends State<LyricsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      body: Stack(
-        children: [
-          // 动态颜色背景
-          Positioned.fill(
-            child: ColorBlender(
-              colors: _extractedColors,
-              blendIntensity: _blendIntensity,
-              width: MediaQuery.of(context).size.width,
-              height: MediaQuery.of(context).size.height,
-              shapeType: BlendShapeType.circle,
-              enableAnimation: true,
-            ),
-          ),
+    return _buildLyricsContent();
+    // return Scaffold(
+    //   extendBodyBehindAppBar: true,
+    //   body: Stack(
+    //     children: [
+    //       // 动态颜色背景
+    //       Positioned.fill(
+    //         child: ColorBlender(
+    //           colors: _extractedColors,
+    //           blendIntensity: _blendIntensity,
+    //           width: MediaQuery.of(context).size.width,
+    //           height: MediaQuery.of(context).size.height,
+    //           shapeType: BlendShapeType.circle,
+    //           enableAnimation: true,
+    //         ),
+    //       ),
 
-          // 内容层 - 半透明遮罩
-          Positioned.fill(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color.fromRGBO(0, 0, 0, 0.3),
-                    Color.fromRGBO(0, 0, 0, 0.5),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          // 主要内容
-          Column(
-            children: [
-              SizedBox(height: MediaQuery.of(context).padding.top),
-              _buildInfo(),
-              Expanded(
-                child: ShaderMask(
-                  // 关键：使用线性渐变作为遮罩
-                  shaderCallback: (Rect bounds) {
-                    return LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: const [
-                        Colors.transparent, // 渐变开始
-                        Colors.transparent,
-                        Colors.black, // 底部完全不透明
-                      ],
-                      stops: [
-                        0.0,
-                        5 / bounds.height,
-                        50 / bounds.height,
-                      ], // 调整渐变区域
-                    ).createShader(bounds);
-                  },
-                  blendMode: BlendMode.dstIn, // 使用目标输入混合模式
-                  child: ClipRect(child: _buildLyricsContent()),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+    //       // 内容层 - 半透明遮罩
+    //       Positioned.fill(
+    //         child: Container(
+    //           decoration: const BoxDecoration(
+    //             gradient: LinearGradient(
+    //               begin: Alignment.topCenter,
+    //               end: Alignment.bottomCenter,
+    //               colors: [
+    //                 Color.fromRGBO(0, 0, 0, 0.3),
+    //                 Color.fromRGBO(0, 0, 0, 0.5),
+    //               ],
+    //             ),
+    //           ),
+    //         ),
+    //       ),
+    //       // 主要内容
+    //       Column(
+    //         children: [
+    //           SizedBox(height: MediaQuery.of(context).padding.top),
+    //           _buildInfo(),
+    //           Expanded(
+    //             child: ShaderMask(
+    //               // 关键：使用线性渐变作为遮罩
+    //               shaderCallback: (Rect bounds) {
+    //                 return LinearGradient(
+    //                   begin: Alignment.topCenter,
+    //                   end: Alignment.bottomCenter,
+    //                   colors: const [
+    //                     Colors.transparent, // 渐变开始
+    //                     Colors.transparent,
+    //                     Colors.black, // 底部完全不透明
+    //                   ],
+    //                   stops: [
+    //                     0.0,
+    //                     5 / bounds.height,
+    //                     50 / bounds.height,
+    //                   ], // 调整渐变区域
+    //                 ).createShader(bounds);
+    //               },
+    //               blendMode: BlendMode.dstIn, // 使用目标输入混合模式
+    //               child: ClipRect(child: _buildLyricsContent()),
+    //             ),
+    //           ),
+    //         ],
+    //       ),
+    //     ],
+    //   ),
+    // );
   }
 
   /// 构建歌曲信息
@@ -435,34 +436,44 @@ class _LyricsPageState extends State<LyricsPage> {
       );
     }
 
-    return Stack(
-      children: List.generate(_lyrics.length, (index) {
-        final lyric = _lyrics[index];
-        final isCurrent = index == _currentLyricIndex;
-        final top = _getCumulativeHeight(index - 1) - _offset + 64;
-        final height = _getCurrentLineHeight(index);
-        final bottom = top + height;
-        if (bottom < 0 || top > _screenHeight) {
-          return Container();
-        }
-        final duration = Duration(
-          milliseconds: (400 + 400 * (index - _currentLyricIndex) ~/ 4).clamp(
-            300,
-            1200,
-          ),
-        );
-        _lyricBuilded[index] = true;
+    return SizedBox(
+      width:
+          _screenHeight > 0
+              ? MediaQuery.of(context).size.width
+              : double.infinity,
+      height:
+          _screenHeight > 0
+              ? MediaQuery.of(context).size.height
+              : double.infinity,
+      child: Stack(
+        children: List.generate(_lyrics.length, (index) {
+          final lyric = _lyrics[index];
+          final isCurrent = index == _currentLyricIndex;
+          final top = _getCumulativeHeight(index - 1) - _offset + 64;
+          final height = _getCurrentLineHeight(index);
+          final bottom = top + height;
+          if (bottom < 0 || top > _screenHeight) {
+            return Container();
+          }
+          final duration = Duration(
+            milliseconds: (400 + 400 * (index - _currentLyricIndex) ~/ 4).clamp(
+              300,
+              1200,
+            ),
+          );
+          _lyricBuilded[index] = true;
 
-        return AnimatedPositioned(
-          key: _lyricLineKeys[index],
-          duration: duration,
-          curve: Curves.easeInOut,
-          top: top,
-          left: 0,
-          right: 0,
-          child: _buildLyricLine(lyric, isCurrent, index, top, bottom),
-        );
-      }),
+          return AnimatedPositioned(
+            key: _lyricLineKeys[index],
+            duration: duration,
+            curve: Curves.easeInOut,
+            top: top,
+            left: 0,
+            right: 0,
+            child: _buildLyricLine(lyric, isCurrent, index, top, bottom),
+          );
+        }),
+      ),
     );
   }
 
@@ -495,7 +506,7 @@ class _LyricsPageState extends State<LyricsPage> {
       );
     }
 
-      // 当前歌词行保持清晰显示
+    // 当前歌词行保持清晰显示
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       child: LyricLineWithTranslationWidget(
@@ -647,13 +658,13 @@ class _LyricLineWithTranslationWidgetState
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
-                widget.lyric.translation!,
-                style: const TextStyle(
-                  fontSize: 20,
-                  color: LyricsColors.secondaryColor,
-                  height: 1.3,
-                ),
+              widget.lyric.translation!,
+              style: const TextStyle(
+                fontSize: 20,
+                color: LyricsColors.secondaryColor,
+                height: 1.3,
               ),
+            ),
           ),
       ],
     );
@@ -709,7 +720,7 @@ class LyricsWorldWidget extends StatelessWidget {
         return SlideTransition(
           position: Tween<Offset>(
             begin: const Offset(0, 0),
-            end: isActive ? const Offset(0, -0.1) : const Offset(0, 0),
+            end: isActive ? const Offset(0, -0.06) : const Offset(0, 0),
           ).animate(
             CurvedAnimation(parent: animation, curve: Curves.easeInOut),
           ),
@@ -786,16 +797,16 @@ class LyricsWorldWidget extends StatelessWidget {
                 ImageFiltered(
                   imageFilter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
                   child: Text(
-                     word,
-                     style: TextStyle(
-                       fontSize: 24,
-                       fontWeight: FontWeight.bold,
-                       color:
-                           isActive
-                               ? LyricsColors.primaryColor
-                               : LyricsColors.secondaryColor,
-                     ),
-                   ),
+                    word,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color:
+                          isActive
+                              ? LyricsColors.primaryColor
+                              : LyricsColors.secondaryColor,
+                    ),
+                  ),
                 ),
             ],
           );
@@ -833,10 +844,7 @@ class _SmoothProgressAnimation extends StatelessWidget {
   final double progress;
   final Widget child;
 
-  const _SmoothProgressAnimation({
-    required this.progress,
-    required this.child,
-  });
+  const _SmoothProgressAnimation({required this.progress, required this.child});
 
   @override
   Widget build(BuildContext context) {
