@@ -19,9 +19,16 @@ void main() async {
   );
   await SettingsService.init();
   
-  // 创建音频服务实例并恢复播放状态
+  // 创建音频服务实例
   final audioService = AudioPlayerService();
-  // await audioService.restorePlaylistState();
+  
+  Future.delayed(const Duration(milliseconds: 500), () async {
+    try {
+      await audioService.restorePlaylistState();
+    } catch (e) {
+      debugPrint('恢复播放状态时出错: $e');
+    }
+  });
   
   runApp(KanadeApp(audioService: audioService));
 }

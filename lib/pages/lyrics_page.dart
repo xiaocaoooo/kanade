@@ -1,16 +1,10 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:kanade/services/services.dart';
 import 'package:provider/provider.dart';
-import 'package:palette_generator/palette_generator.dart';
 import '../models/song.dart';
 import '../services/audio_player_service.dart';
-// 移除不必要的导入
-// import '../services/lyrics_service.dart';
-import '../services/color_cache_service.dart';
-import '../widgets/color_blender.dart';
-import 'dart:ui'; // 添加导入以使用ImageFilter
+import 'dart:ui';
 
 /// 歌词显示页面
 /// 支持逐行歌词和逐字歌词显示
@@ -30,9 +24,6 @@ class _LyricsPageState extends State<LyricsPage> {
   bool _hasLyrics = false;
   final ScrollController _scrollController = ScrollController();
   int _currentLyricIndex = -1;
-  List<Color> _extractedColors = [Colors.black];
-  final double _blendIntensity = 8;
-  String? _lastSongId;
   late Song song;
   List<double> _lyricsLineHeights = [];
   List<double> _prefixSumHeights = []; // 前缀和数组，用于快速计算累积高度
@@ -52,7 +43,6 @@ class _LyricsPageState extends State<LyricsPage> {
     // 延迟初始化，避免在构建过程中调用setState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _screenHeight = MediaQuery.of(context).size.height;
-      _extractColorsFromCurrentSong();
     });
   }
 
@@ -62,7 +52,6 @@ class _LyricsPageState extends State<LyricsPage> {
     if (oldWidget.song != widget.song) {
       song = widget.song;
       _loadLyrics();
-      _extractColorsFromCurrentSong();
     }
   }
 
@@ -277,124 +266,6 @@ class _LyricsPageState extends State<LyricsPage> {
   @override
   Widget build(BuildContext context) {
     return _buildLyricsContent();
-    // return Scaffold(
-    //   extendBodyBehindAppBar: true,
-    //   body: Stack(
-    //     children: [
-    //       // 动态颜色背景
-    //       Positioned.fill(
-    //         child: ColorBlender(
-    //           colors: _extractedColors,
-    //           blendIntensity: _blendIntensity,
-    //           width: MediaQuery.of(context).size.width,
-    //           height: MediaQuery.of(context).size.height,
-    //           shapeType: BlendShapeType.circle,
-    //           enableAnimation: true,
-    //         ),
-    //       ),
-
-    //       // 内容层 - 半透明遮罩
-    //       Positioned.fill(
-    //         child: Container(
-    //           decoration: const BoxDecoration(
-    //             gradient: LinearGradient(
-    //               begin: Alignment.topCenter,
-    //               end: Alignment.bottomCenter,
-    //               colors: [
-    //                 Color.fromRGBO(0, 0, 0, 0.3),
-    //                 Color.fromRGBO(0, 0, 0, 0.5),
-    //               ],
-    //             ),
-    //           ),
-    //         ),
-    //       ),
-    //       // 主要内容
-    //       Column(
-    //         children: [
-    //           SizedBox(height: MediaQuery.of(context).padding.top),
-    //           _buildInfo(),
-    //           Expanded(
-    //             child: ShaderMask(
-    //               // 关键：使用线性渐变作为遮罩
-    //               shaderCallback: (Rect bounds) {
-    //                 return LinearGradient(
-    //                   begin: Alignment.topCenter,
-    //                   end: Alignment.bottomCenter,
-    //                   colors: const [
-    //                     Colors.transparent, // 渐变开始
-    //                     Colors.transparent,
-    //                     Colors.black, // 底部完全不透明
-    //                   ],
-    //                   stops: [
-    //                     0.0,
-    //                     5 / bounds.height,
-    //                     50 / bounds.height,
-    //                   ], // 调整渐变区域
-    //                 ).createShader(bounds);
-    //               },
-    //               blendMode: BlendMode.dstIn, // 使用目标输入混合模式
-    //               child: ClipRect(child: _buildLyricsContent()),
-    //             ),
-    //           ),
-    //         ],
-    //       ),
-    //     ],
-    //   ),
-    // );
-  }
-
-  /// 构建歌曲信息
-  Widget _buildInfo() {
-    final cover =
-        song.albumId != null
-            ? CoverCacheManager.instance.getCover(song.albumId!)
-            : null;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      child: Row(
-        children: [
-          Hero(
-            tag: 'album-${song.id}',
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                color: LyricsColors.primaryColor,
-                child:
-                    cover != null
-                        ? Image.memory(cover, width: 75, height: 75)
-                        : const Icon(Icons.music_note, size: 50),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  song.title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: LyricsColors.primaryColor,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  song.artist,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: LyricsColors.secondaryColor,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   /// 构建歌词内容
@@ -515,79 +386,6 @@ class _LyricsPageState extends State<LyricsPage> {
         player: _playerService,
       ),
     );
-  }
-
-  /// 从当前歌曲的专辑封面提取颜色
-  Future<void> _extractColorsFromCurrentSong() async {
-    // 移除不必要的null检查
-    final currentSong = song;
-    // if (currentSong == null) return; // 这行可以移除，因为song总是非null
-
-    if (_lastSongId == currentSong.id) {
-      return;
-    }
-
-    _lastSongId = currentSong.id;
-
-    final cachedColors = ColorCacheService.instance.getColors(currentSong.id);
-    if (cachedColors != null) {
-      _extractedColors = cachedColors;
-      return;
-    }
-
-    try {
-      final albumArt = _playerService.getAlbumArtForSong(currentSong);
-      List<Color> extractedColors = [];
-
-      if (albumArt != null) {
-        final imageProvider = MemoryImage(albumArt);
-        final palette = await PaletteGenerator.fromImageProvider(imageProvider);
-
-        final colors = <Color>[];
-        if (palette.dominantColor != null) {
-          colors.add(palette.dominantColor!.color);
-        }
-        if (palette.vibrantColor != null) {
-          colors.add(palette.vibrantColor!.color);
-        }
-        if (palette.mutedColor != null) {
-          colors.add(palette.mutedColor!.color);
-        }
-        if (palette.darkVibrantColor != null) {
-          colors.add(palette.darkVibrantColor!.color);
-        }
-        if (palette.lightVibrantColor != null) {
-          colors.add(palette.lightVibrantColor!.color);
-        }
-
-        extractedColors = colors.toList();
-      } else if (currentSong.albumId != null) {
-        await _playerService.loadAlbumArtForSong(currentSong);
-        final loadedArt = _playerService.getAlbumArtForSong(currentSong);
-        if (loadedArt != null) {
-          final imageProvider = MemoryImage(loadedArt);
-          final palette = await PaletteGenerator.fromImageProvider(
-            imageProvider,
-          );
-
-          final colors = <Color>[];
-          if (palette.dominantColor != null) {
-            colors.add(palette.dominantColor!.color);
-          }
-          if (palette.vibrantColor != null) {
-            colors.add(palette.vibrantColor!.color);
-          }
-          if (palette.mutedColor != null) colors.add(palette.mutedColor!.color);
-
-          extractedColors = colors.toList();
-        }
-      }
-
-      ColorCacheService.instance.cacheColors(currentSong.id, extractedColors);
-      _extractedColors = extractedColors;
-    } catch (e) {
-      debugPrint('颜色提取失败: $e');
-    }
   }
 }
 
@@ -736,34 +534,17 @@ class LyricsWorldWidget extends StatelessWidget {
             return Stack(
               alignment: Alignment.centerLeft,
               children: [
-                // 基础文字（灰色背景）
                 Text(
                   word,
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: LyricsColors.secondaryColor,
-                  ),
-                ),
-                // 渐变覆盖层（高亮进度）
-                ClipRect(
-                  child: _SmoothProgressAnimation(
-                    progress: progress!,
-                    child: Text(
-                      word,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: LyricsColors.primaryColor,
-                      ),
-                    ),
+                    color: LyricsColors.primaryColor,
                   ),
                 ),
                 if (isActive)
                   ClipRect(
-                    child: _SmoothProgressAnimation(
-                      progress: progress!,
-                      child: ImageFiltered(
+                    child: ImageFiltered(
                         imageFilter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
                         child: Text(
                           word,
@@ -773,7 +554,6 @@ class LyricsWorldWidget extends StatelessWidget {
                             color: LyricsColors.primaryColor,
                           ),
                         ),
-                      ),
                     ),
                   ),
               ],
@@ -802,10 +582,7 @@ class LyricsWorldWidget extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color:
-                          isActive
-                              ? LyricsColors.primaryColor
-                              : LyricsColors.secondaryColor,
+                      color:LyricsColors.primaryColor,
                     ),
                   ),
                 ),
@@ -813,53 +590,6 @@ class LyricsWorldWidget extends StatelessWidget {
           );
         },
       ),
-    );
-  }
-}
-
-/// 自定义裁剪器，实现硬渐变效果
-class _ProgressClipper extends CustomClipper<Rect> {
-  final double progress;
-
-  const _ProgressClipper({required this.progress});
-
-  @override
-  Rect getClip(Size size) {
-    // 创建从左到右的硬渐变裁剪区域
-    return Rect.fromLTWH(
-      0,
-      0,
-      size.width * progress.clamp(0.0, 1.0),
-      size.height,
-    );
-  }
-
-  @override
-  bool shouldReclip(_ProgressClipper oldClipper) {
-    return oldClipper.progress != progress;
-  }
-}
-
-/// 平滑进度动画组件
-class _SmoothProgressAnimation extends StatelessWidget {
-  final double progress;
-  final Widget child;
-
-  const _SmoothProgressAnimation({required this.progress, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween<double>(begin: 0.0, end: progress),
-      duration: const Duration(milliseconds: 150),
-      curve: Curves.easeOutCubic,
-      builder: (context, value, child) {
-        return ClipRect(
-          clipper: _ProgressClipper(progress: value),
-          child: child,
-        );
-      },
-      child: child,
     );
   }
 }

@@ -68,6 +68,9 @@ class AudioPlayerService extends ChangeNotifier {
   // 保存状态的防抖计时器
   Timer? _saveStateTimer;
 
+  // 定时保存播放进度的计时器
+  Timer? _progressSaveTimer;
+
   AudioPlayerService() {
     _init();
   }
@@ -103,11 +106,17 @@ class AudioPlayerService extends ChangeNotifier {
       // 更新播放状态
       if (state.playing) {
         _playerState = PlayerState.playing;
+        // 开始播放时启动定时保存计时器
+        _startProgressSaveTimer();
       } else if (state.processingState == just_audio.ProcessingState.loading) {
         _playerState = PlayerState.loading;
+        // 加载时取消定时保存计时器
+        _cancelProgressSaveTimer();
       } else if (state.processingState == just_audio.ProcessingState.ready) {
         if (_playerState != PlayerState.playing) {
           _playerState = PlayerState.paused;
+          // 暂停时取消定时保存计时器
+          _cancelProgressSaveTimer();
         }
       } else {
         // 处理错误状态和其他状态
@@ -116,6 +125,8 @@ class AudioPlayerService extends ChangeNotifier {
           // 正常状态，不做处理
         } else {
           _playerState = PlayerState.error;
+          // 错误状态时取消定时保存计时器
+          _cancelProgressSaveTimer();
         }
       }
       notifyListeners();
@@ -128,8 +139,12 @@ class AudioPlayerService extends ChangeNotifier {
     _playingSubscription = _audioPlayer.playingStream.listen((playing) {
       if (playing) {
         _playerState = PlayerState.playing;
+        // 开始播放时启动定时保存计时器
+        _startProgressSaveTimer();
       } else {
         _playerState = PlayerState.paused;
+        // 暂停时取消定时保存计时器
+        _cancelProgressSaveTimer();
       }
       notifyListeners();
       
@@ -248,6 +263,8 @@ class AudioPlayerService extends ChangeNotifier {
       if (_playerState == PlayerState.paused) {
         await _audioPlayer.play();
         _playerState = PlayerState.playing;
+        // 开始播放时启动定时保存计时器
+        _startProgressSaveTimer();
       } else {
         await playSong(_currentSong!);
       }
@@ -266,6 +283,8 @@ class AudioPlayerService extends ChangeNotifier {
     try {
       await _audioPlayer.pause();
       _playerState = PlayerState.paused;
+      // 暂停时取消定时保存计时器
+      _cancelProgressSaveTimer();
       notifyListeners();
     } catch (e) {
       debugPrint('暂停失败: $e');
@@ -278,6 +297,8 @@ class AudioPlayerService extends ChangeNotifier {
       await _audioPlayer.stop();
       _playerState = PlayerState.stopped;
       _position = Duration.zero;
+      // 停止时取消定时保存计时器
+      _cancelProgressSaveTimer();
       notifyListeners();
     } catch (e) {
       debugPrint('停止失败: $e');
@@ -287,6 +308,9 @@ class AudioPlayerService extends ChangeNotifier {
   /// 上一首
   Future<void> previous() async {
     if (_playlist.isEmpty) return;
+
+    // 切换歌曲前取消定时保存计时器
+    _cancelProgressSaveTimer();
 
     int newIndex;
     switch (_playMode) {
@@ -306,12 +330,17 @@ class AudioPlayerService extends ChangeNotifier {
     await _audioPlayer.seek(Duration.zero, index: newIndex);
     if (!isPlaying) {
       await _audioPlayer.play();
+      // 开始播放时启动定时保存计时器
+      _startProgressSaveTimer();
     }
   }
 
   /// 下一首
   Future<void> next() async {
     if (_playlist.isEmpty) return;
+
+    // 切换歌曲前取消定时保存计时器
+    _cancelProgressSaveTimer();
 
     int newIndex;
     switch (_playMode) {
@@ -334,6 +363,8 @@ class AudioPlayerService extends ChangeNotifier {
     await _audioPlayer.seek(Duration.zero, index: newIndex);
     if (!isPlaying) {
       await _audioPlayer.play();
+      // 开始播放时启动定时保存计时器
+      _startProgressSaveTimer();
     }
   }
 
@@ -527,8 +558,9 @@ class AudioPlayerService extends ChangeNotifier {
       final currentIndex = (state['currentIndex'] as int).clamp(0, restoredPlaylist.length - 1);
       final playModeStr = state['playMode'] as String;
       final position = state['position'] as int;
-      final isPlaying = state['isPlaying'] as bool;
-      final volume = (state['volume'] as num).toDouble();
+      // final isPlaying = state['isPlaying'] as bool;
+      final isPlaying = false;
+      // final volume = (state['volume'] as num).toDouble();
 
       // 设置播放模式
       switch (playModeStr) {
@@ -552,11 +584,11 @@ class AudioPlayerService extends ChangeNotifier {
       _playlist = restoredPlaylist;
       _currentIndex = currentIndex;
       _currentSong = _playlist[_currentIndex];
-      _volume = volume.clamp(0.0, 1.0);
+      // _volume = volume.clamp(0.0, 1.0);
 
       // 设置音频播放器
       await _setupBackgroundPlaylist(initialIndex: currentIndex);
-      await _audioPlayer.setVolume(_volume);
+      // await _audioPlayer.setVolume(_volume);
       
       // 设置播放模式
       _audioPlayer.setLoopMode(
@@ -639,6 +671,7 @@ class AudioPlayerService extends ChangeNotifier {
     _saveStateImmediately();
     
     _saveStateTimer?.cancel();
+    _progressSaveTimer?.cancel(); // 取消定时保存计时器
     _positionSubscription?.cancel();
     _durationSubscription?.cancel();
     _playerStateSubscription?.cancel();
@@ -646,6 +679,22 @@ class AudioPlayerService extends ChangeNotifier {
     _currentIndexSubscription?.cancel();
     _audioPlayer.dispose();
     super.dispose();
+  }
+
+  /// 启动定时保存播放进度的计时器（每10秒保存一次）
+  void _startProgressSaveTimer() {
+    // 先取消可能存在的计时器
+    _progressSaveTimer?.cancel();
+    // 创建新的计时器，每10秒保存一次进度
+    _progressSaveTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      debugPrint('定时保存播放进度');
+      _saveStateImmediately();
+    });
+  }
+
+  /// 取消定时保存播放进度的计时器
+  void _cancelProgressSaveTimer() {
+    _progressSaveTimer?.cancel();
   }
 
   /// 获取歌曲的专辑封面
