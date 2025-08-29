@@ -5,10 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:kanada_volume/kanada_volume.dart';
+import 'package:kanada_lyric_sender/kanada_lyric_sender.dart';
 import '../models/song.dart';
 import 'music_service.dart';
 import 'settings_service.dart';
 import 'cover_cache_service.dart';
+import 'lyrics_service.dart';
 
 /// 音频播放状态枚举
 enum PlayerState { stopped, playing, paused, loading, error }
@@ -71,6 +73,12 @@ class AudioPlayerService extends ChangeNotifier {
   // 定时保存播放进度的计时器
   Timer? _progressSaveTimer;
 
+  // 歌词相关
+  List<LyricLine>? _currentLyrics;
+  String? _lastSentLyric; // 上一次发送的歌词，避免重复发送
+  LyricLine? _currentLyricLine; // 当前显示的歌词行
+  String? _currentLyricsSongId; // 当前歌词对应的歌曲ID，用于验证歌词和歌曲是否匹配
+
   AudioPlayerService() {
     _init();
   }
@@ -87,8 +95,10 @@ class AudioPlayerService extends ChangeNotifier {
 
     // 监听播放进度
     _positionSubscription = _audioPlayer.positionStream.listen((position) {
-      _position = position ?? Duration.zero;
+      _position = position;
       notifyListeners();
+      // 实时发送当前歌词
+      _sendCurrentLyric();
     });
 
     // 监听音频时长
@@ -203,9 +213,9 @@ class AudioPlayerService extends ChangeNotifier {
                     Uri.file(song.path),
                     tag: MediaItem(
                       id: song.id.toString(),
-                      album: song.album ?? 'Unknown Album',
+                      album: song.album,
                       title: song.title,
-                      artist: song.artist ?? 'Unknown Artist',
+                      artist: song.artist,
                       artUri: song.albumArtUri,
                     ),
                   ),
@@ -231,6 +241,12 @@ class AudioPlayerService extends ChangeNotifier {
       _playerState = PlayerState.loading;
       notifyListeners();
 
+      // 清除之前的歌词和发送记录
+      _clearLyrics();
+      
+      // 异步加载新歌的歌词
+      _loadSongLyrics(song);
+      
       // 找到歌曲在播放列表中的索引
       final songIndex = _playlist.indexWhere((s) => s.id == song.id);
       if (songIndex != -1) {
@@ -299,6 +315,8 @@ class AudioPlayerService extends ChangeNotifier {
       _position = Duration.zero;
       // 停止时取消定时保存计时器
       _cancelProgressSaveTimer();
+      // 清除歌词显示
+      _clearLyrics();
       notifyListeners();
     } catch (e) {
       debugPrint('停止失败: $e');
@@ -327,6 +345,10 @@ class AudioPlayerService extends ChangeNotifier {
 
     _currentIndex = newIndex;
     _currentSong = _playlist[_currentIndex];
+    // 清除之前的歌词和发送记录
+    _clearLyrics();
+    // 异步加载新歌的歌词
+    _loadSongLyrics(_currentSong!);
     await _audioPlayer.seek(Duration.zero, index: newIndex);
     if (!isPlaying) {
       await _audioPlayer.play();
@@ -360,6 +382,10 @@ class AudioPlayerService extends ChangeNotifier {
 
     _currentIndex = newIndex;
     _currentSong = _playlist[_currentIndex];
+    // 清除之前的歌词和发送记录
+    _clearLyrics();
+    // 异步加载新歌的歌词
+    _loadSongLyrics(_currentSong!);
     await _audioPlayer.seek(Duration.zero, index: newIndex);
     if (!isPlaying) {
       await _audioPlayer.play();
@@ -555,12 +581,10 @@ class AudioPlayerService extends ChangeNotifier {
       }
 
       // 解析其他状态
-      final currentIndex = (state['currentIndex'] as int).clamp(0, restoredPlaylist.length - 1);
-      final playModeStr = state['playMode'] as String;
-      final position = state['position'] as int;
-      // final isPlaying = state['isPlaying'] as bool;
-      final isPlaying = false;
-      // final volume = (state['volume'] as num).toDouble();
+      final currentIndex = (state['currentIndex'] as int?)?.clamp(0, restoredPlaylist.length - 1) ?? 0;
+      final playModeStr = state['playMode'] as String? ?? 'repeatAll';
+      final position = state['position'] as int? ?? 0;
+        // final isPlaying = state['isPlaying'] as bool? ?? false;
 
       // 设置播放模式
       switch (playModeStr) {
@@ -584,11 +608,14 @@ class AudioPlayerService extends ChangeNotifier {
       _playlist = restoredPlaylist;
       _currentIndex = currentIndex;
       _currentSong = _playlist[_currentIndex];
-      // _volume = volume.clamp(0.0, 1.0);
+      
+      // 清除之前的歌词和发送记录
+      _clearLyrics();
+      // 异步加载当前歌曲的歌词
+      _loadSongLyrics(_currentSong!);
 
       // 设置音频播放器
       await _setupBackgroundPlaylist(initialIndex: currentIndex);
-      // await _audioPlayer.setVolume(_volume);
       
       // 设置播放模式
       _audioPlayer.setLoopMode(
@@ -601,10 +628,7 @@ class AudioPlayerService extends ChangeNotifier {
         await _audioPlayer.seek(Duration(milliseconds: position));
       }
 
-      // 如果需要继续播放
-      if (isPlaying) {
-        await _audioPlayer.play();
-      }
+      // 由于isPlaying被硬编码为false，这里不需要调用play方法
 
       notifyListeners();
       debugPrint('播放状态已恢复: ${_playlist.length}首歌曲，当前索引: $_currentIndex');
@@ -677,8 +701,90 @@ class AudioPlayerService extends ChangeNotifier {
     _playerStateSubscription?.cancel();
     _playingSubscription?.cancel();
     _currentIndexSubscription?.cancel();
+    // 清除歌词显示
+    _clearLyrics();
     _audioPlayer.dispose();
     super.dispose();
+  }
+
+  /// 异步加载歌曲的歌词
+  Future<void> _loadSongLyrics(Song song) async {
+    try {
+      // 记录当前歌词对应的歌曲ID
+      _currentLyricsSongId = song.id;
+      
+      // 尝试从LRC文件获取歌词
+      _currentLyrics = await LyricsService.getLyricsForSong(song);
+      
+      // 如果没有LRC文件，尝试从音频文件元数据获取歌词
+      if (_currentLyrics == null || _currentLyrics!.isEmpty) {
+        _currentLyrics = await LyricsService.getLyricsFromMetadata(song.path);
+      }
+      
+      // 如果歌词加载成功，在初始位置尝试发送第一句歌词
+      if (_currentLyrics != null && _currentLyrics!.isNotEmpty) {
+        _sendCurrentLyric();
+      }
+    } catch (e) {
+      debugPrint('加载歌词失败: $e');
+      _currentLyrics = null;
+      _currentLyricsSongId = null;
+    }
+  }
+
+  /// 发送当前播放的歌词
+  Future<void> _sendCurrentLyric() async {
+    // 检查是否启用了歌词发送功能
+    final isLyricSenderEnabled = await KanadaLyricSenderPlugin.hasEnable();
+    if (!isLyricSenderEnabled || _currentLyrics == null || _currentLyrics!.isEmpty) {
+      return;
+    }
+
+    // 检查当前播放的歌曲ID是否与歌词对应的歌曲ID一致
+    // 如果不一致，重新加载当前歌曲的歌词
+    if (_currentSong != null && _currentSong!.id != _currentLyricsSongId) {
+      await _loadSongLyrics(_currentSong!);
+      return;
+    }
+
+    // 获取当前应该显示的歌词行
+    final currentLyricLine = LyricsService.getCurrentLyric(_currentLyrics!, _position);
+    
+    // 如果歌词行发生变化或者没有发送过歌词
+    if (currentLyricLine != null && currentLyricLine != _currentLyricLine) {
+      _currentLyricLine = currentLyricLine;
+      
+      // 计算歌词持续时间（秒），向下取整
+      final durationInSeconds = (currentLyricLine.endTime - currentLyricLine.startTime).inSeconds;
+      
+      // 构建完整歌词（不包含翻译）
+      String fullLyric = currentLyricLine.text;
+      // if (currentLyricLine.translation != null && currentLyricLine.translation!.isNotEmpty) {
+      //   fullLyric = '$fullLyric\n${currentLyricLine.translation!}';
+      // }
+      
+      // 避免重复发送相同的歌词
+      if (fullLyric != _lastSentLyric) {
+        _lastSentLyric = fullLyric;
+        // 发送歌词到原生端
+        await KanadaLyricSenderPlugin.sendLyric(fullLyric, durationInSeconds);
+      }
+    } else if (currentLyricLine == null && _lastSentLyric != null) {
+      // 如果没有当前歌词行，但之前发送过歌词，则清除显示
+      _lastSentLyric = null;
+      _currentLyricLine = null;
+      await KanadaLyricSenderPlugin.clearLyric();
+    }
+  }
+
+  /// 清除歌词相关数据
+  void _clearLyrics() {
+    _currentLyrics = null;
+    _lastSentLyric = null;
+    _currentLyricLine = null;
+    _currentLyricsSongId = null; // 清除当前歌词对应的歌曲ID
+    // 清除原生端显示的歌词
+    KanadaLyricSenderPlugin.clearLyric();
   }
 
   /// 启动定时保存播放进度的计时器（每10秒保存一次）
