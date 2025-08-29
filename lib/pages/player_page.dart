@@ -281,6 +281,13 @@ class _PlayerPageState extends State<PlayerPage> {
         // 监听返回键事件
         onWillPop: () async {
           if (_showLyrics) {
+            if (!_showControls) {
+              setState(() {
+                _willShowControls = true;
+                _setControlsVisible();
+              });
+              return false;
+            }
             // 当显示歌词时，拦截返回键并关闭歌词显示
             setState(() {
               _showLyrics = false;
@@ -415,9 +422,9 @@ class _PlayerPageState extends State<PlayerPage> {
                         ],
                       ),
                       onTap: () {
-                        _willShowControls = true;
-                        _setControlsVisible();
-                        _willShowControls = false;
+                        // _willShowControls = true;
+                        // _setControlsVisible();
+                        _willShowControls = !_showControls;
                         _setControlsVisible();
                       },
                     ),
@@ -860,13 +867,16 @@ class _PlayerPageState extends State<PlayerPage> {
         _showControls = true;
       });
     } else {
-      Future.delayed(const Duration(milliseconds: 5000), () {
-        if (!_willShowControls && mounted) {
-          setState(() {
-            _showControls = false;
-          });
-        }
+      setState(() {
+        _showControls = false;
       });
+      // Future.delayed(const Duration(milliseconds: 5000), () {
+      //   if (!_willShowControls && mounted) {
+      //     setState(() {
+      //       _showControls = false;
+      //     });
+      //   }
+      // });
     }
   }
 

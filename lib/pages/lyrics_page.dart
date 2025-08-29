@@ -663,6 +663,7 @@ class _LyricLineWithTranslationWidgetState
                 fontSize: 20,
                 color: LyricsColors.secondaryColor,
                 height: 1.3,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
