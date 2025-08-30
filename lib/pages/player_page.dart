@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:palette_generator/palette_generator.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/song.dart';
 import '../services/audio_player_service.dart';
 import '../services/color_cache_service.dart';
@@ -63,6 +64,8 @@ class _PlayerPageState extends State<PlayerPage> {
 
     // 添加歌曲变化监听器
     _playerService.addListener(_onCurrentSongChanged);
+    // 添加播放状态变化监听器
+    _playerService.addListener(_onPlayerStateChanged);
 
     // 延迟初始化，避免在构建过程中调用setState
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -71,11 +74,45 @@ class _PlayerPageState extends State<PlayerPage> {
       _initializePlayer();
       _extractColorsFromCurrentSong();
 
+      // 启用屏幕唤醒锁
+      _enableWakelock();
+
       // 再添加一个postFrameCallback，确保UI已经重新渲染后再计算位置
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _calcImagePosition();
       });
     });
+  }
+
+  /// 启用屏幕唤醒锁
+  void _enableWakelock() async {
+    try {
+      await WakelockPlus.enable();
+      debugPrint('屏幕唤醒锁已启用');
+    } catch (e) {
+      debugPrint('启用屏幕唤醒锁失败: $e');
+    }
+  }
+
+  /// 禁用屏幕唤醒锁
+  void _disableWakelock() async {
+    try {
+      await WakelockPlus.disable();
+      debugPrint('屏幕唤醒锁已禁用');
+    } catch (e) {
+      debugPrint('禁用屏幕唤醒锁失败: $e');
+    }
+  }
+
+  /// 播放状态变化时的回调
+  void _onPlayerStateChanged() {
+    if (_playerService.playerState == PlayerState.playing) {
+      _enableWakelock();
+    } else if (_playerService.playerState == PlayerState.paused ||
+               _playerService.playerState == PlayerState.stopped) {
+      // 即使暂停，播放器页面仍应保持屏幕唤醒
+      // _disableWakelock();
+    }
   }
 
   Future<void> _calcImagePosition() async {
@@ -161,6 +198,11 @@ class _PlayerPageState extends State<PlayerPage> {
   void dispose() {
     // 移除监听器
     _playerService.removeListener(_onCurrentSongChanged);
+    _playerService.removeListener(_onPlayerStateChanged);
+    
+    // 禁用屏幕唤醒锁
+    _disableWakelock();
+    
     super.dispose();
   }
 
