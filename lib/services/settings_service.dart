@@ -24,10 +24,8 @@ class SettingsService {
   /// 默认艺术家白名单
   static const List<String> _defaultWhitelist = [
     'Leo/need',
-    'YOASOBI',
-    '40mP',
-    'DECO*27',
-    'kemu',
+    '25時、ナイトコードで。',
+    'COOL&CREATE',
   ];
 
   /// 缓存的分隔符列表
