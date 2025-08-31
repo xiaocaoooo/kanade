@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kanade/widgets/slider.dart';
 import 'package:provider/provider.dart';
 import 'package:palette_generator/palette_generator.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -684,6 +685,7 @@ class _PlayerPageState extends State<PlayerPage> {
         curve: Curves.easeInOut,
         top: titlePosition.dy,
         left: titlePosition.dx,
+        width: titleBox?.size.width,
         child: AnimatedContainer(
           duration: Duration(milliseconds: 300),
           curve: Curves.easeInOut,
@@ -704,6 +706,7 @@ class _PlayerPageState extends State<PlayerPage> {
         curve: Curves.easeInOut,
         top: artistPosition.dy,
         left: artistPosition.dx,
+        width: artistBox?.size.width,
         child: AnimatedContainer(
           duration: Duration(milliseconds: 300),
           curve: Curves.easeInOut,
@@ -731,41 +734,27 @@ class _PlayerPageState extends State<PlayerPage> {
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
           child: Column(
             children: [
-              SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  activeTrackColor: Colors.white,
-                  inactiveTrackColor: Colors.white.withOpacity(0.3),
-                  thumbColor: Colors.white,
-                  overlayColor: Colors.white.withOpacity(0.2),
-                  thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 8.0,
-                  ),
-                  overlayShape: const RoundSliderOverlayShape(
-                    overlayRadius: 20.0,
-                  ),
+              KanadeSlider(
+                value: _position,
+                min: 0,
+                max: player.duration.inMilliseconds.toDouble(),
+                style: const KanadeSliderStyle(
+                  activeColor: Color(0xAAFFFFFF),
+                  inactiveColor: Color(0x50FFFFFF),
                 ),
-                child: Slider(
-                  value: _position,
-                  min: 0,
-                  max: player.duration.inMilliseconds.toDouble(),
-                  onChangeStart: (value) {
-                    _positionDragging = true;
-                  },
-                  onChanged: (value) {
-                    _position = value;
-                    final newPosition = Duration(
-                      milliseconds: _position.toInt(),
-                    );
-                    player.seek(newPosition);
-                  },
-                  onChangeEnd: (value) {
-                    final newPosition = Duration(
-                      milliseconds: _position.toInt(),
-                    );
-                    player.seek(newPosition);
-                    _positionDragging = false;
-                  },
-                ),
+                onChangeStart: (value) {
+                  _positionDragging = true;
+                },
+                onChanged: (value) {
+                  _position = value;
+                  final newPosition = Duration(milliseconds: _position.toInt());
+                  player.seek(newPosition);
+                },
+                onChangeEnd: (value) {
+                  final newPosition = Duration(milliseconds: _position.toInt());
+                  player.seek(newPosition);
+                  _positionDragging = false;
+                },
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -849,21 +838,17 @@ class _PlayerPageState extends State<PlayerPage> {
             children: [
               const Icon(Icons.volume_down, size: 20, color: Colors.white),
               Expanded(
-                child: SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    activeTrackColor: Colors.white,
-                    inactiveTrackColor: Colors.white.withOpacity(0.3),
-                    thumbColor: Colors.white,
-                    overlayColor: Colors.white.withOpacity(0.2),
-                  ),
-                  child: Slider(
+                child: KanadeSlider(
                     value: player.volume,
-                    onChanged: (value) => player.setVolume(value),
                     min: 0.0,
                     max: 1.0,
+                    style: const KanadeSliderStyle(
+                      activeColor: Color(0xAAFFFFFF),
+                      inactiveColor: Color(0x50FFFFFF),
+                    ),
+                    onChanged: (value) => player.setVolume(value)
                   ),
                 ),
-              ),
               const Icon(Icons.volume_up, size: 20, color: Colors.white),
             ],
           ),

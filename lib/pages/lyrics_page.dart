@@ -614,6 +614,7 @@ class _OptimizedWordLyricsState extends State<_OptimizedWordLyrics>
     with TickerProviderStateMixin {
   late List<AnimationController> _controllers;
   late List<Animation<double>> _animations;
+  final RegExp _englishWordRegExp = RegExp(r"^[a-zA-Z' ]+$");
 
   @override
   void initState() {
@@ -696,6 +697,11 @@ class _OptimizedWordLyricsState extends State<_OptimizedWordLyrics>
     super.dispose();
   }
 
+  // 检查字符串是否只包含英文字母
+  bool _isEnglishWord(String word) {
+    return _englishWordRegExp.hasMatch(word);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Wrap(
@@ -710,13 +716,22 @@ class _OptimizedWordLyricsState extends State<_OptimizedWordLyrics>
           }
         }
 
+        // 检查当前单词和下一个单词是否都是英文单词
+        // 如果是，则在当前单词后添加空格
+        String displayWord = wordTiming.word;
+        if (index < widget.wordTimings.length - 1 &&
+            _isEnglishWord(wordTiming.word) &&
+            _isEnglishWord(widget.wordTimings[index + 1].word)) {
+          displayWord = '${wordTiming.word} ';
+        }
+
         return KeyedSubtree(
           key: ValueKey('${wordTiming.word}_$index'),
           child: AnimatedBuilder(
             animation: _animations[index],
             builder: (context, child) {
               return LyricsWorldWidget(
-                word: wordTiming.word,
+                word: displayWord,
                 isActive: isWordActive,
                 progress: isWordActive ? _animations[index].value : null,
               );
