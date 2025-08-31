@@ -55,6 +55,9 @@ class AudioPlayerService extends ChangeNotifier {
   // 音量控制 (0.0 - 1.0)
   double _volume = 1.0;
   double get volume => _volume;
+  
+  /// 获取系统音量并更新本地音量值
+  /// 这个方法会被音量检查计时器定期调用
 
   // 播放模式
   PlayMode _playMode = PlayMode.repeatAll;
@@ -72,6 +75,9 @@ class AudioPlayerService extends ChangeNotifier {
 
   // 定时保存播放进度的计时器
   Timer? _progressSaveTimer;
+  
+  // 系统音量变化监听计时器
+  Timer? _volumeCheckTimer;
 
   // 歌词相关
   List<LyricLine>? _currentLyrics;
@@ -89,9 +95,12 @@ class AudioPlayerService extends ChangeNotifier {
 
     _audioPlayer.setLoopMode(just_audio.LoopMode.all);
     _audioPlayer.setShuffleModeEnabled(false);
-    
+
     // 初始化时从系统获取当前音量
     _syncVolumeFromSystem();
+    
+    // 启动系统音量变化监听计时器
+    _startVolumeCheckTimer();
 
     // 监听播放进度
     _positionSubscription = _audioPlayer.positionStream.listen((position) {
@@ -140,7 +149,7 @@ class AudioPlayerService extends ChangeNotifier {
         }
       }
       notifyListeners();
-      
+
       // 播放状态变化时保存状态
       _saveStateDebounced();
     });
@@ -157,7 +166,7 @@ class AudioPlayerService extends ChangeNotifier {
         _cancelProgressSaveTimer();
       }
       notifyListeners();
-      
+
       // 播放/暂停状态变化时保存状态
       _saveStateDebounced();
     });
@@ -168,7 +177,7 @@ class AudioPlayerService extends ChangeNotifier {
         _currentIndex = index;
         _currentSong = _playlist[index];
         notifyListeners();
-        
+
         // 播放索引变化时保存状态
         _saveStateDebounced();
       }
@@ -243,10 +252,10 @@ class AudioPlayerService extends ChangeNotifier {
 
       // 清除之前的歌词和发送记录
       _clearLyrics();
-      
+
       // 异步加载新歌的歌词
       _loadSongLyrics(song);
-      
+
       // 找到歌曲在播放列表中的索引
       final songIndex = _playlist.indexWhere((s) => s.id == song.id);
       if (songIndex != -1) {
@@ -406,6 +415,19 @@ class AudioPlayerService extends ChangeNotifier {
     }
   }
 
+  Future<void> getVolume() async {
+    final volume = await KanadaVolumePlugin.getVolume();
+    final maxVolume = await KanadaVolumePlugin.getMaxVolume();
+    if (volume == null || maxVolume == null) {
+      return;
+    }
+    final changed = _volume != volume / maxVolume;
+    _volume = volume / maxVolume;
+    if (changed) {
+      notifyListeners();
+    }
+  }
+
   /// 设置音量
   /// 使用kanada_volume插件控制系统音量
   Future<void> setVolume(double volume) async {
@@ -415,10 +437,10 @@ class AudioPlayerService extends ChangeNotifier {
       final maxVolume = await KanadaVolumePlugin.getMaxVolume() ?? 15;
       // 将0.0-1.0的浮点音量转换为0-maxVolume的整数音量
       final intVolume = (volume * maxVolume).round();
-      
+
       // 使用kanada_volume插件设置系统音量
       await KanadaVolumePlugin.setVolume(intVolume);
-      
+
       _volume = volume;
       notifyListeners();
       _saveStateDebounced(); // 音量变化时保存状态
@@ -530,7 +552,9 @@ class AudioPlayerService extends ChangeNotifier {
   /// 检查是否有保存的播放状态
   static Future<bool> hasSavedPlaylistState() async {
     final state = await SettingsService.loadPlaylistState();
-    return state != null && state['playlist'] != null && (state['playlist'] as List).isNotEmpty;
+    return state != null &&
+        state['playlist'] != null &&
+        (state['playlist'] as List).isNotEmpty;
   }
 
   /// 保存当前播放状态
@@ -544,7 +568,7 @@ class AudioPlayerService extends ChangeNotifier {
     try {
       // 获取当前播放进度
       final currentPosition = _position.inMilliseconds;
-      
+
       // 构建播放状态数据
       final state = {
         'playlist': _playlist.map((song) => song.toJson()).toList(),
@@ -572,8 +596,11 @@ class AudioPlayerService extends ChangeNotifier {
       }
 
       // 解析播放列表
-      final playlistData = List<Map<String, dynamic>>.from(state['playlist'] as List);
-      final restoredPlaylist = playlistData.map((data) => Song.fromJson(data)).toList();
+      final playlistData = List<Map<String, dynamic>>.from(
+        state['playlist'] as List,
+      );
+      final restoredPlaylist =
+          playlistData.map((data) => Song.fromJson(data)).toList();
 
       if (restoredPlaylist.isEmpty) {
         debugPrint('恢复的播放列表为空');
@@ -581,10 +608,15 @@ class AudioPlayerService extends ChangeNotifier {
       }
 
       // 解析其他状态
-      final currentIndex = (state['currentIndex'] as int?)?.clamp(0, restoredPlaylist.length - 1) ?? 0;
+      final currentIndex =
+          (state['currentIndex'] as int?)?.clamp(
+            0,
+            restoredPlaylist.length - 1,
+          ) ??
+          0;
       final playModeStr = state['playMode'] as String? ?? 'repeatAll';
       final position = state['position'] as int? ?? 0;
-        // final isPlaying = state['isPlaying'] as bool? ?? false;
+      // final isPlaying = state['isPlaying'] as bool? ?? false;
 
       // 设置播放模式
       switch (playModeStr) {
@@ -608,7 +640,7 @@ class AudioPlayerService extends ChangeNotifier {
       _playlist = restoredPlaylist;
       _currentIndex = currentIndex;
       _currentSong = _playlist[_currentIndex];
-      
+
       // 清除之前的歌词和发送记录
       _clearLyrics();
       // 异步加载当前歌曲的歌词
@@ -616,10 +648,12 @@ class AudioPlayerService extends ChangeNotifier {
 
       // 设置音频播放器
       await _setupBackgroundPlaylist(initialIndex: currentIndex);
-      
+
       // 设置播放模式
       _audioPlayer.setLoopMode(
-        _playMode == PlayMode.repeatOne ? just_audio.LoopMode.one : just_audio.LoopMode.all,
+        _playMode == PlayMode.repeatOne
+            ? just_audio.LoopMode.one
+            : just_audio.LoopMode.all,
       );
       _audioPlayer.setShuffleModeEnabled(_playMode == PlayMode.shuffle);
 
@@ -658,7 +692,7 @@ class AudioPlayerService extends ChangeNotifier {
     try {
       final currentVolume = await KanadaVolumePlugin.getVolume() ?? 0;
       final maxVolume = await KanadaVolumePlugin.getMaxVolume() ?? 15;
-      
+
       if (maxVolume > 0) {
         _volume = currentVolume / maxVolume;
         notifyListeners();
@@ -689,13 +723,28 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   /// 释放资源
+  /// 启动系统音量变化监听计时器
+  void _startVolumeCheckTimer() {
+    // 每500毫秒检查一次系统音量变化
+    _volumeCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      getVolume();
+    });
+  }
+  
+  /// 取消系统音量变化监听计时器
+  void _cancelVolumeCheckTimer() {
+    _volumeCheckTimer?.cancel();
+    _volumeCheckTimer = null;
+  }
+  
   @override
   void dispose() {
     // 在释放资源前保存播放状态
     _saveStateImmediately();
-    
+
     _saveStateTimer?.cancel();
     _progressSaveTimer?.cancel(); // 取消定时保存计时器
+    _volumeCheckTimer?.cancel(); // 取消音量检查计时器
     _positionSubscription?.cancel();
     _durationSubscription?.cancel();
     _playerStateSubscription?.cancel();
@@ -712,15 +761,15 @@ class AudioPlayerService extends ChangeNotifier {
     try {
       // 记录当前歌词对应的歌曲ID
       _currentLyricsSongId = song.id;
-      
+
       // 尝试从LRC文件获取歌词
       _currentLyrics = await LyricsService.getLyricsForSong(song);
-      
+
       // 如果没有LRC文件，尝试从音频文件元数据获取歌词
       if (_currentLyrics == null || _currentLyrics!.isEmpty) {
         _currentLyrics = await LyricsService.getLyricsFromMetadata(song.path);
       }
-      
+
       // 如果歌词加载成功，在初始位置尝试发送第一句歌词
       if (_currentLyrics != null && _currentLyrics!.isNotEmpty) {
         _sendCurrentLyric();
@@ -736,7 +785,9 @@ class AudioPlayerService extends ChangeNotifier {
   Future<void> _sendCurrentLyric() async {
     // 检查是否启用了歌词发送功能
     final isLyricSenderEnabled = await KanadaLyricSenderPlugin.hasEnable();
-    if (!isLyricSenderEnabled || _currentLyrics == null || _currentLyrics!.isEmpty) {
+    if (!isLyricSenderEnabled ||
+        _currentLyrics == null ||
+        _currentLyrics!.isEmpty) {
       return;
     }
 
@@ -748,21 +799,25 @@ class AudioPlayerService extends ChangeNotifier {
     }
 
     // 获取当前应该显示的歌词行
-    final currentLyricLine = LyricsService.getCurrentLyric(_currentLyrics!, _position);
-    
+    final currentLyricLine = LyricsService.getCurrentLyric(
+      _currentLyrics!,
+      _position,
+    );
+
     // 如果歌词行发生变化或者没有发送过歌词
     if (currentLyricLine != null && currentLyricLine != _currentLyricLine) {
       _currentLyricLine = currentLyricLine;
-      
+
       // 计算歌词持续时间（秒），向下取整
-      final durationInSeconds = (currentLyricLine.endTime - currentLyricLine.startTime).inSeconds;
-      
+      final durationInSeconds =
+          (currentLyricLine.endTime - currentLyricLine.startTime).inSeconds;
+
       // 构建完整歌词（不包含翻译）
       String fullLyric = currentLyricLine.text;
       // if (currentLyricLine.translation != null && currentLyricLine.translation!.isNotEmpty) {
       //   fullLyric = '$fullLyric\n${currentLyricLine.translation!}';
       // }
-      
+
       // 避免重复发送相同的歌词
       if (fullLyric != _lastSentLyric) {
         _lastSentLyric = fullLyric;

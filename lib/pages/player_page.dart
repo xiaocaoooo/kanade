@@ -30,6 +30,8 @@ class _PlayerPageState extends State<PlayerPage> {
   bool _showLyrics = false;
   bool _willShowControls = true;
   bool _showControls = true;
+  double _position = 0;
+  bool _positionDragging = false;
 
   GlobalKey _bigImageKey = GlobalKey();
   RenderBox? _bigImageBox;
@@ -87,8 +89,10 @@ class _PlayerPageState extends State<PlayerPage> {
   /// 启用屏幕唤醒锁
   void _enableWakelock() async {
     try {
-      await WakelockPlus.enable();
-      debugPrint('屏幕唤醒锁已启用');
+      if (!await WakelockPlus.enabled) {
+        await WakelockPlus.enable();
+        debugPrint('屏幕唤醒锁已启用');
+      }
     } catch (e) {
       debugPrint('启用屏幕唤醒锁失败: $e');
     }
@@ -109,7 +113,7 @@ class _PlayerPageState extends State<PlayerPage> {
     if (_playerService.playerState == PlayerState.playing) {
       _enableWakelock();
     } else if (_playerService.playerState == PlayerState.paused ||
-               _playerService.playerState == PlayerState.stopped) {
+        _playerService.playerState == PlayerState.stopped) {
       // 即使暂停，播放器页面仍应保持屏幕唤醒
       // _disableWakelock();
     }
@@ -199,10 +203,10 @@ class _PlayerPageState extends State<PlayerPage> {
     // 移除监听器
     _playerService.removeListener(_onCurrentSongChanged);
     _playerService.removeListener(_onPlayerStateChanged);
-    
+
     // 禁用屏幕唤醒锁
     _disableWakelock();
-    
+
     super.dispose();
   }
 
@@ -720,6 +724,9 @@ class _PlayerPageState extends State<PlayerPage> {
   Widget _buildProgressControls() {
     return Consumer<AudioPlayerService>(
       builder: (context, player, child) {
+        if (!_positionDragging) {
+          _position = player.position.inMilliseconds.toDouble();
+        }
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
           child: Column(
@@ -738,13 +745,25 @@ class _PlayerPageState extends State<PlayerPage> {
                   ),
                 ),
                 child: Slider(
-                  value: player.progress,
+                  value: _position,
+                  min: 0,
+                  max: player.duration.inMilliseconds.toDouble(),
+                  onChangeStart: (value) {
+                    _positionDragging = true;
+                  },
                   onChanged: (value) {
+                    _position = value;
                     final newPosition = Duration(
-                      milliseconds:
-                          (value * player.duration.inMilliseconds).toInt(),
+                      milliseconds: _position.toInt(),
                     );
                     player.seek(newPosition);
+                  },
+                  onChangeEnd: (value) {
+                    final newPosition = Duration(
+                      milliseconds: _position.toInt(),
+                    );
+                    player.seek(newPosition);
+                    _positionDragging = false;
                   },
                 ),
               ),
