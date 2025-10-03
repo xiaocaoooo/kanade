@@ -4,6 +4,8 @@ name: Quick Build Debug
 on:
   push:
     branches: [ '**' ]
+  # 也可以手动触发工作流
+  workflow_dispatch:
 
 jobs:
   build:
@@ -26,9 +28,9 @@ jobs:
     - name: Get dependencies
       run: flutter pub get
       
-    # 构建Debug APK
+    # 构建Debug APK（指定abiFilters解决x86支持警告）
     - name: Build Debug APK
-      run: flutter build apk --debug
+      run: flutter build apk --debug --target-platform android-arm,android-arm64,android-x64
       
     # 上传构建产物
     - name: Upload APK
